@@ -18,3 +18,7 @@ Private HMAC key: Script Properties TRADE_SIGNING_SECRET and private database sy
 Monitor Apps Script Executions for failed runs and Project Settings script properties TRADE_LAST_SYNC, TRADE_LAST_ERROR and TRADE_PENDING. No public database read interface is deployed. The standalone script onOpen menu helper is not automatically invoked by this installation; run tradeSyncNow manually in the editor if needed.
 
 Testing: unauthorized HTTP request returned 401. Transactional synthetic SQL tests verified INSERT, UPDATE, DELETE, RESTORE and were rolled back. Initial production import verified from Supabase and installer reported Execution completed. No live business records were modified for testing.
+
+## Discovery integration
+
+The deployed endpoint also accepts crawler-key-signed batches into discovery_leads and returns pending leads to authenticated workbook syncs. Code.gs appends them idempotently to Discovery inbox, then acknowledges delivery. These unverified records do not overwrite the main CRM. Daily cron is configured in .github/workflows/discovery.yml. Direct Meta API crawling remains disabled until authorized credentials/targets are configured.
