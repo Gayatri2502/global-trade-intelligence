@@ -59,8 +59,8 @@ def iso(value):
     if isinstance(value,(int,float)):return (datetime(1899,12,30)+timedelta(days=value)).date().isoformat()
     return str(value)[:10] if re.match(r'\d{4}-\d{2}-\d{2}',str(value)) else None
 
-def load_model(path=WORKBOOK):
-    tables,raw,formula_errors=read_workbook(path)
+def load_model(path=WORKBOOK, source=None):
+    tables,raw,formula_errors=source if source is not None else read_workbook(path)
     issues=[]; contacts=[]
     for sheet in CONTACT_SHEETS:
         for row in tables.get(sheet,[]):

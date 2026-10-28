@@ -14,14 +14,15 @@ Deno.serve(async (request: Request) => {
   let parsed;
   try { parsed=JSON.parse(body); } catch { return new Response('Invalid JSON',{status:400}); }
   const discoveryOnly=['discovery_ingest','discovery_ack'].includes(parsed.kind);
-  const rpc=discoveryOnly?'trade_discovery':'trade_ingest';
+  const operations=['snapshot_read','model_upload','dashboard_read','backup_upload','backup_read'].includes(parsed.kind);
+  const rpc=operations?'trade_operations':discoveryOnly?'trade_discovery':'trade_ingest';
   const response=await fetch(Deno.env.get('SUPABASE_URL')+'/rest/v1/rpc/'+rpc,{
     method:'POST',headers:{'Content-Type':'application/json','apikey':String(key),'Authorization':'Bearer '+String(key)},
     body:JSON.stringify({p_body:body,p_signature:signature,p_timestamp:Number(timestamp)})
   });
   if(!response.ok) return new Response(JSON.stringify({ok:false,error:'Sync rejected; check IDs, signature and payload'}),{status:400,headers:{'Content-Type':'application/json'}});
   const result=await response.json();
-  if(!discoveryOnly){
+  if(!discoveryOnly && !operations){
     const inbox=await fetch(Deno.env.get('SUPABASE_URL')+'/rest/v1/rpc/trade_discovery',{
       method:'POST',headers:{'Content-Type':'application/json','apikey':String(key),'Authorization':'Bearer '+String(key)},
       body:JSON.stringify({p_body:body,p_signature:signature,p_timestamp:Number(timestamp)})

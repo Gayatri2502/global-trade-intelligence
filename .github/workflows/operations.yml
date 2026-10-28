@@ -1,0 +1,50 @@
+name: Dashboard refresh and backup health
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      backup:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: trade-operations
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refresh model and verify daily native backup
+        env:
+          TRADE_OPERATIONS_SECRET: ${{ secrets.TRADE_OPERATIONS_SECRET }}
+          BACKUP: ${{ inputs.backup }}
+        run: |
+          if [ "$BACKUP" = "true" ] || [ "$(date -u +%H)" = "04" ]; then
+            python operations/run.py --backup
+          else
+            python operations/run.py
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-trade-backup-${{ github.run_id }}
+          path: backups/
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Report actionable failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh issue list --search 'in:title "Trade operations need attention"' --state open --json number --jq length)
+          if [ "$count" = "0" ]; then
+            gh issue create --title 'Trade operations need attention' --body "Dashboard refresh or backup verification failed. Inspect the private workflow logs: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fi

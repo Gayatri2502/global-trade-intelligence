@@ -286,3 +286,43 @@ Source pages may contain obsolete or incorrect claims. Review identities, contac
 - `.github/workflows/discovery.yml`: daily cron and manual execution.
 
 This repository is private and contains business data. Do not make it public without reviewing and removing that data. It is not an independent guarantee against data loss; retain separate exports and restore-tested backups.
+
+## Hosted dashboard, automated model refresh and recovery
+
+The owner-private dashboard is hosted at https://global-trade-intelligence-desk.samalg2502.chatgpt.site. Sites provides sign-in and the private access boundary; sharing has not been widened. Server-side HMAC credentials are stored as runtime secrets, never in browser JavaScript.
+
+```mermaid
+flowchart LR
+  Sheets[Operational Google Sheet] -->|edit/change + five-minute reconciliation| Edge[Signed Supabase webhook]
+  Edge --> DB[(Private snapshots and audit records)]
+  Actions[GitHub Actions every 30 minutes] -->|signed snapshot read| DB
+  Actions -->|same Python finance normalizer| Model[(Dashboard model cache)]
+  Browser[Owner signed-in browser] --> Worker[Private Sites server]
+  Worker -->|signed read| Model
+  Sheets -->|daily native Excel export| Archives[(Cloud XLSX archives)]
+  Archives -->|daily download + checksum / ZIP / sheet checks| Backup[Private GitHub artifacts: 30-day retention]
+  Actions -->|failure| Issue[Deduplicated private GitHub issue]
+```
+
+- Edit the existing Google Sheet as usual. Database reconciliation runs every five minutes; the hosted model refresh is scheduled every 30 minutes, subject to GitHub scheduling delays. The open browser checks for the latest model every minute. It is not instantaneous streaming.
+- `operations/run.py` uses the existing tested Python normalizer, keeping invoices, collected cash, commissions, refunds and missing FX distinct. It rejects stale source synchronization rather than silently replacing the model.
+- `backend/Code.gs` includes `installTradeBackups`, which installs one daily trigger and performs a native Sheets-to-XLSX export immediately. Native export preserves charts, formatting and formulas. The server stores immutable archives keyed by SHA-256.
+- The operations workflow checks native backups during the 04:00 UTC hour daily, and on manual dispatch with `backup=true`. It checks SHA-256, ZIP integrity and required workbook sheets before retaining the XLSX plus raw snapshot and verification manifest as private artifacts for 30 days.
+- Recovery: download a verified artifact from the Actions run, inspect its manifest, open the XLSX in Excel, and import into a **new** Google spreadsheet for review before replacing any live source. Automatic restoration into the production workbook is deliberately not performed. Structural recovery checks do not constitute a full disaster-recovery drill of triggers, permissions and cloud infrastructure.
+- Workflow failures create one private issue named `Trade operations need attention`; GitHub notification preferences determine whether you receive email. Check Actions and that issue after changing credentials or permissions.
+- No service can guarantee zero loss. GitHub artifact expiration, free-tier quotas, account access and delayed jobs remain practical limits. Keep occasional offline copies for longer retention.
+
+### Rebuild and test
+
+```sh
+python3 operations/test_snapshot.py
+python3 outputs/global_trade_intelligence/test_workbook_data.py
+node --test outputs/global_trade_intelligence/test_metrics.mjs
+python3 hosted/scripts/embed.py
+bash hosted/scripts/build.sh
+node hosted/scripts/validate-artifact.mjs
+```
+
+`TRADE_OPERATIONS_SECRET` is required in encrypted GitHub Actions secrets and private Sites runtime variables. `backend/operations.sql` adds the strictly signed operations RPC. The workbook signing key remains separate from the operations key. A fresh installation must register both keys securely; no keys are committed.
+
+Facebook/Instagram account authorization remains the final integration step. The bounded public-web discovery job remains usable without it; social profile links do not mean their private content has been crawled. Enable authorized Meta API credentials only for accounts/data the API permits.

@@ -73,3 +73,19 @@ function tradeImportDiscovery_(workbook,leads,secret){
  const response=UrlFetchApp.fetch(TRADE_ENDPOINT,{method:'post',contentType:'application/json',payload:body,headers:{'x-trade-signature':signature,'x-trade-timestamp':stamp},muteHttpExceptions:true});
  if(response.getResponseCode()!==200)throw new Error('Discovery receipt acknowledgement failed; next sync will retry without duplicate rows');
 }
+
+// Native Sheets export preserves charts, formats and formulas.
+function tradeDailyBackup(){
+ const response=UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/'+TRADE_ID+'/export?format=xlsx',{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()},muteHttpExceptions:true});
+ if(response.getResponseCode()!==200)throw new Error('Native Excel export failed: '+response.getResponseCode());
+ const bytes=response.getBlob().getBytes();if(bytes[0]!==80||bytes[1]!==75)throw new Error('Invalid Excel export');
+ const body=JSON.stringify({kind:'backup_upload',spreadsheetId:TRADE_ID,content:Utilities.base64Encode(bytes)}),stamp=String(Math.floor(Date.now()/1000));
+ const signature=Utilities.computeHmacSha256Signature(stamp+'.'+body,PropertiesService.getScriptProperties().getProperty('TRADE_SIGNING_SECRET'),Utilities.Charset.UTF_8).map(b=>('0'+(b&255).toString(16)).slice(-2)).join('');
+ const upload=UrlFetchApp.fetch(TRADE_ENDPOINT,{method:'post',contentType:'application/json',payload:body,headers:{'x-trade-signature':signature,'x-trade-timestamp':stamp},muteHttpExceptions:true});
+ if(upload.getResponseCode()!==200)throw new Error('Backup upload failed: '+upload.getResponseCode());
+ PropertiesService.getScriptProperties().setProperty('TRADE_LAST_BACKUP',new Date().toISOString());
+}
+function installTradeBackups(){
+ ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==='tradeDailyBackup').forEach(t=>ScriptApp.deleteTrigger(t));
+ ScriptApp.newTrigger('tradeDailyBackup').timeBased().everyDays(1).atHour(8).create();tradeDailyBackup();
+}
