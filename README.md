@@ -326,3 +326,5 @@ node hosted/scripts/validate-artifact.mjs
 `TRADE_OPERATIONS_SECRET` is required in encrypted GitHub Actions secrets and private Sites runtime variables. `backend/operations.sql` adds the strictly signed operations RPC. The workbook signing key remains separate from the operations key. A fresh installation must register both keys securely; no keys are committed.
 
 Facebook/Instagram account authorization remains the final integration step. The bounded public-web discovery job remains usable without it; social profile links do not mean their private content has been crawled. Enable authorized Meta API credentials only for accounts/data the API permits.
+
+Latest end-to-end verification: the manually dispatched [operations run](https://github.com/Gayatri2502/global-trade-intelligence/actions/runs/40701514748) successfully refreshed the model and retained a validated native Excel backup artifact. This confirms cloud execution and independent artifact storage; full production restore remains a separate manual review step.
