@@ -1,0 +1,226 @@
+{
+  "spreadsheet_id": "1wNPYCBBXAn3y2uJ4LOV6vGgWzYhro_PPGk2HsU0cjj0",
+  "endpoint": "https://cdnzpncsbxavakbvtgem.supabase.co/functions/v1/trade-sync",
+  "max_domains": 30,
+  "pages_per_domain": 3,
+  "delay_seconds": 1,
+  "search_queries": [
+    "moringa powder exporter contact India",
+    "makhana exporter importer contact",
+    "exotic fruits importer distributor contact"
+  ],
+  "sources": [
+    {
+      "url": "https://iginternational.net/",
+      "company": "IG International Pvt Ltd",
+      "role": "Importer / distributor",
+      "product": "Exotic fruits",
+      "country": "India"
+    },
+    {
+      "url": "https://djexport.net/",
+      "company": "DJ Exports",
+      "role": "Importer / exporter",
+      "product": "Exotic fruits",
+      "country": "India"
+    },
+    {
+      "url": "https://www.suriagrofresh.com/",
+      "company": "Suri Agro Fresh Pvt Ltd",
+      "role": "Importer / distributor",
+      "product": "Exotic fruits",
+      "country": "India"
+    },
+    {
+      "url": "https://barakatfresh.ae/contact-us",
+      "company": "Barakat Vegetables & Fruits Co LLC",
+      "role": "Importer / distributor",
+      "product": "Exotic fruits",
+      "country": "UAE"
+    },
+    {
+      "url": "https://www.barakatalmadina.com/aboutus.php",
+      "company": "Barakat Al-Madina Trading Co",
+      "role": "Importer / distributor",
+      "product": "Exotic fruits",
+      "country": "UAE"
+    },
+    {
+      "url": "https://www.barakataltabieya.com/",
+      "company": "Barakat Altabieya",
+      "role": "Importer / exporter",
+      "product": "Exotic fruits",
+      "country": "UAE"
+    },
+    {
+      "url": "https://aarleezwellness.co.uk/moringa-powder",
+      "company": "Aarleez Ltd",
+      "role": "Importer",
+      "product": "Moringa",
+      "country": "United Kingdom"
+    },
+    {
+      "url": "https://aduna.com/pages/moringa-frequently-asked-questions",
+      "company": "Aduna Superfoods",
+      "role": "Importer / brand",
+      "product": "Moringa",
+      "country": "United Kingdom"
+    },
+    {
+      "url": "https://www.daniorganics.com/contact",
+      "company": "Dani Organic Foods Ltd",
+      "role": "Importer / processor",
+      "product": "Moringa",
+      "country": "United Kingdom"
+    },
+    {
+      "url": "https://www.organicherbtrading.com/bulktradeinformation/",
+      "company": "Organic Herb Trading",
+      "role": "Importer / wholesaler",
+      "product": "Moringa",
+      "country": "United Kingdom"
+    },
+    {
+      "url": "https://www.makufoods.org/trade",
+      "company": "MakuFoods USA",
+      "role": "Importer / distributor",
+      "product": "Makhana",
+      "country": "USA"
+    },
+    {
+      "url": "https://tdap.gov.pk/wp-content/uploads/2025/03/List-of-Malaysian-Importers-buyers-Distributors-FV.pdf",
+      "company": "Lotuss Stores (Malaysia) Sdn Bhd",
+      "role": "Buyer / retailer",
+      "product": "Exotic fruits",
+      "country": "Malaysia"
+    },
+    {
+      "url": "https://tdap.gov.pk/wp-content/uploads/2025/03/List-of-Malaysian-Importers-buyers-Distributors-FV.pdf",
+      "company": "Jaya Grocer / Trendcell Sdn Bhd",
+      "role": "Buyer / retailer",
+      "product": "Exotic fruits",
+      "country": "Malaysia"
+    },
+    {
+      "url": "https://makhanaexport.com/",
+      "company": "National Makhana Udyog",
+      "role": "Manufacturer / exporter",
+      "product": "Makhana",
+      "country": "India"
+    },
+    {
+      "url": "https://www.naturetohomeagro.com/contact-us.html",
+      "company": "Nature to Home Agro Traders",
+      "role": "Supplier / exporter",
+      "product": "Makhana",
+      "country": "India"
+    },
+    {
+      "url": "https://mallahmakhana.com/",
+      "company": "Mallah Makhana",
+      "role": "Supplier / exporter",
+      "product": "Makhana",
+      "country": "India"
+    },
+    {
+      "url": "https://makhanaudyog.com/about",
+      "company": "Makhana Udyog",
+      "role": "Manufacturer / exporter",
+      "product": "Makhana",
+      "country": "India"
+    },
+    {
+      "url": "https://www.terryexports.com/contact-us/",
+      "company": "Terry Exports LLP",
+      "role": "Exporter",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://www.moringaorganicindia.com/contactus",
+      "company": "Shreeyam Heritage Exim Pvt Ltd",
+      "role": "Manufacturer / exporter",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://infexim.com/contact",
+      "company": "Infinity Exim Overseas",
+      "role": "Exporter",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://www.buymoringaplantproducts.com/contact-us/",
+      "company": "Ramamoorthy Exports",
+      "role": "Exporter",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://exportsskagri.com/",
+      "company": "SK Agri Exports",
+      "role": "Grower / processor / exporter",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://www.farminganaturals.co.in/",
+      "company": "Farminga Naturals",
+      "role": "Manufacturer / exporter",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://5.imimg.com/data5/PV/SB/AR/SELLER-18960835/moringa-dried-leaves.pdf",
+      "company": "Ecowise Import Export Pvt Ltd",
+      "role": "Grower / exporter",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://www.exotic-fruit.com/",
+      "company": "Exotic Fruits Pvt Ltd",
+      "role": "Processor / exporter",
+      "product": "Tropical fruit puree",
+      "country": "India"
+    },
+    {
+      "url": "https://www.deccanexotics.com/contact_us",
+      "company": "Deccan Exotics",
+      "role": "Farm / nursery / export support",
+      "product": "Exotic fruits",
+      "country": "India"
+    },
+    {
+      "url": "https://www.dragonfruitfarm.in/contact-us.htm",
+      "company": "SS Organic Dragon Fruit Farm",
+      "role": "Farm / supplier",
+      "product": "Exotic fruits",
+      "country": "India"
+    },
+    {
+      "url": "https://nandiorgafarm.com/contact-form/",
+      "company": "NOFH Private Limited / Nandi Orga Farm",
+      "role": "Farm / supplier",
+      "product": "Moringa",
+      "country": "India"
+    },
+    {
+      "url": "https://www.makhana.com/pages/contact",
+      "company": "Madhubani Makhana Pvt Ltd",
+      "role": "Brand / supplier",
+      "product": "Makhana",
+      "country": "India"
+    },
+    {
+      "url": "https://makhana.org.in/contact-us/",
+      "company": "Bihar Makhana",
+      "role": "Supplier",
+      "product": "Makhana",
+      "country": "India"
+    }
+  ],
+  "facebook_page_ids": [],
+  "instagram_business_usernames": []
+}

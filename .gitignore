@@ -1,0 +1,15 @@
+# Business data stays out of source control
+*.xlsx
+*.xlsm
+*.csv
+*.ndjson
+*.zip
+*.png
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+node_modules/
+backups/
+outputs/trade_contacts_20261026/
