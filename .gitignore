@@ -13,3 +13,6 @@ __pycache__/
 node_modules/
 backups/
 outputs/trade_contacts_20261026/
+
+# Reviewed contact manifests are operational data, not source
+research/contacts_*.json
