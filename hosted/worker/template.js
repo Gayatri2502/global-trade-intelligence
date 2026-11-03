@@ -9,6 +9,19 @@ async function read(env,kind){
 }
 export default {async fetch(request,env){
  const path=new URL(request.url).pathname;const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
+ if(path==='/api/sync'&&request.method==='POST'){
+  if(request.headers.get('Origin')!==new URL(request.url).origin)return new Response('Forbidden',{status:403,headers});
+  if(!env.TRADE_GITHUB_SYNC_TOKEN)return Response.json({error:'Dashboard sync is not configured.'},{status:503,headers});
+  try{
+   const response=await fetch('https://api.github.com/repos/Gayatri2502/global-trade-intelligence/actions/workflows/operations.yml/dispatches',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+env.TRADE_GITHUB_SYNC_TOKEN,Accept:'application/vnd.github+json','Content-Type':'application/json','User-Agent':'Trade-Dashboard'},
+    body:JSON.stringify({ref:'main'})
+   });
+   if(!response.ok)throw Error();
+   return Response.json({queued:true},{status:202,headers});
+  }catch{return Response.json({error:'Could not start the dashboard sync.'},{status:502,headers});}
+ }
  if(request.method!=='GET')return new Response('Method not allowed',{status:405});
  try{
   if(path==='/api/data'){

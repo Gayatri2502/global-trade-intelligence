@@ -27,7 +27,16 @@ def normalize(snapshot,path):
   for i,row in enumerate(values[5:],6):
    if row and row[0] not in ('',None):rows.append(dict(zip(map(str,headers),row),_row=i,_sheet=name))
   tables[name]=rows;raw[name]={'cells':cells}
- return load_model(path,source=(tables,raw,errors))
+ model=load_model(path,source=(tables,raw,errors))
+ discovery=[];seen=set()
+ for sh in snapshot['sheets']:
+  if sh['name']!='Discovery inbox':continue
+  for i,row in enumerate(sh['values'][1:],2):
+   if not row or not row[0] or str(row[0]) in seen:continue
+   seen.add(str(row[0]));v=lambda j:row[j] if len(row)>j and row[j] not in ('',None) else 'NA'
+   discovery.append(dict(id=str(row[0]),name=v(1),role=v(2),product=v(3),country=v(4),phone=v(5),email=v(6),source=v(7),evidence=v(9),verification=v(10),discovered=str(v(11))[:10],notes=v(12),row=i))
+ model['discovery']=discovery;model['meta']['coverage']['discovery']=len(discovery)
+ return model
 def main():
  p=argparse.ArgumentParser();p.add_argument('--backup',action='store_true');a=p.parse_args()
  result=rpc('snapshot_read');age=(datetime.now(timezone.utc)-datetime.fromisoformat(result['lastSync'].replace('Z','+00:00'))).total_seconds()
