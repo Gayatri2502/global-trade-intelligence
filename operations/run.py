@@ -38,12 +38,14 @@ def normalize(snapshot,path):
  model['discovery']=discovery;model['meta']['coverage']['discovery']=len(discovery)
  return model
 def main():
- p=argparse.ArgumentParser();p.add_argument('--backup',action='store_true');a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--backup',action='store_true');p.add_argument('--model-output',type=Path);a=p.parse_args()
  result=rpc('snapshot_read');age=(datetime.now(timezone.utc)-datetime.fromisoformat(result['lastSync'].replace('Z','+00:00'))).total_seconds()
  if age>1200:raise RuntimeError('Workbook sync is stale (>20 minutes)')
  model=normalize(result['snapshot'],Path(__file__).resolve().parents[1]/'data/Trade_Business_Dashboard.xlsx')
  model['meta'].update(workbook='Google Sheets → signed cloud sync',savedAt=result['lastSync'],sourceHash=result['hash'])
  rpc('model_upload',model=model,sourceHash=result['hash']);print('Dashboard refreshed; source records:',model['meta']['coverage'])
+ if a.model_output:
+  a.model_output.write_text(json.dumps(model))
  if a.backup:
   archive=rpc('backup_read');content=base64.b64decode(archive['content'])
   if hashlib.sha256(content).hexdigest()!=archive['sha256']:raise RuntimeError('Backup checksum mismatch')

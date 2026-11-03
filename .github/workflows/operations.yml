@@ -28,9 +28,9 @@ jobs:
           BACKUP: ${{ inputs.backup }}
         run: |
           if [ "$BACKUP" = "true" ] || [ "$(date -u +%H)" = "04" ]; then
-            python operations/run.py --backup
+            python operations/run.py --model-output dashboard-model.json --backup
           else
-            python operations/run.py
+            python operations/run.py --model-output dashboard-model.json
           fi
       - uses: actions/upload-artifact@v4
         if: always()
@@ -39,6 +39,12 @@ jobs:
           path: backups/
           retention-days: 30
           if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: dashboard-model
+          path: dashboard-model.json
+          retention-days: 3
       - name: Report actionable failure
         if: failure()
         env:
