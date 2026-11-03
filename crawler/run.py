@@ -79,7 +79,7 @@ def extract(url,html,source):
   host=(parse.urlparse(link).hostname or '').removeprefix('www.')
   if host in SOCIAL:social.append(link.split('?')[0])
  # Avoid guessing phone numbers from product quantities, dates or licence IDs.
- product=source.get('product') or next((p for p in ['Moringa','Makhana','Garlic powder','Tomato powder','Exotic fruits','Vanilla'] if p.lower() in low),'Other / review')
+ product=source.get('product') or next((p for p in ['Moringa','Makhana','Dragon fruit','Garlic powder','Onion','Garlic','Ginger','Fresh vegetables','Fresh fruits','Tomato powder','Exotic fruits','Vanilla'] if p.lower() in low),'Other / review')
  role=source.get('role') or ('Exporter / review' if 'export' in low else 'Importer / review' if 'import' in low else 'Supplier / review')
  company=source.get('company') or ' '.join(page.title).strip()[:200] or parse.urlparse(url).hostname
  if not emails and not phones:return None,page.links
