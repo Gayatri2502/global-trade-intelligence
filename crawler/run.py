@@ -52,14 +52,30 @@ def permitted(url,cache):
  return policy if isinstance(policy,bool) else policy.can_fetch(AGENT,url)
 def canonical(url):
  p=parse.urlparse(url);return parse.urlunparse((p.scheme,p.netloc.lower(),p.path.rstrip('/') or '/','','',''))
+def public_phones(text, links):
+ """Extract explicitly published phone channels, avoiding unlabeled numeric IDs."""
+ candidates = [parse.unquote(link[4:]) for link in links if link.lower().startswith('tel:')]
+ for link in links:
+  url = parse.urlparse(link)
+  if url.scheme == 'https' and url.hostname == 'wa.me':
+   candidates.append('+' + url.path.strip('/'))
+ candidates.extend(re.findall(
+  r'(?:phone|telephone|mobile|whatsapp|call us|tel)\s*(?:no\.?|number)?\s*[:：]?\s*(\+?\d[\d(). \t-]{7,22}\d)',
+  text, re.I))
+ phones = set()
+ for raw in candidates:
+  digits = re.sub(r'\D', '', raw)
+  if 8 <= len(digits) <= 15 and len(set(digits)) > 2:
+   phones.add(('+' if raw.strip().startswith('+') else '') + digits)
+ return phones
+
 def extract(url,html,source):
  page=Page();page.feed(html);text=' '.join(page.text);low=text.lower()
  if any(x in low[:5000] for x in ['verify you are human','access denied','just a moment','captcha']):raise ValueError('Block page; not bypassed')
  emails=set(re.findall(r'\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b',text,re.I))
- phones=set();social=[]
+ phones=public_phones(text,page.links);social=[]
  for link in page.links:
   if link.startswith('mailto:'):emails.add(parse.unquote(link[7:].split('?')[0]))
-  if link.startswith('tel:'):phones.add(parse.unquote(link[4:]))
   host=(parse.urlparse(link).hostname or '').removeprefix('www.')
   if host in SOCIAL:social.append(link.split('?')[0])
  # Avoid guessing phone numbers from product quantities, dates or licence IDs.
@@ -75,7 +91,7 @@ def signed_post(config,payload):
  req=request.Request(config['endpoint'],data=body,method='POST',headers={'Content-Type':'application/json','x-trade-timestamp':stamp,'x-trade-signature':signature})
  with request.urlopen(req,timeout=60) as response:return json.load(response)
 def discover(config,summary):
- sources=list(config['sources'])
+ seeds=list(config['sources']);sources=[]
  # Public search RSS is best effort. No paid provider or search-result scraping bypass.
  for query in config.get('search_queries',[])[:3]:
   try:
@@ -84,7 +100,7 @@ def discover(config,summary):
     url=item.findtext('link') or '';host=(parse.urlparse(url).hostname or '').removeprefix('www.')
     if url.startswith('https://') and host not in SOCIAL:sources.append({'url':url})
   except Exception as exc:summary['errors'].append({'provider':'public_search_rss','reason':type(exc).__name__})
- return sources
+ return seeds[:10]+sources+seeds[10:]
 def social_api(config,summary):
  token=os.environ.get('META_ACCESS_TOKEN');version=os.environ.get('META_GRAPH_VERSION')
  if not token or not version:
