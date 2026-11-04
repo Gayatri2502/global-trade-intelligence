@@ -2,7 +2,7 @@ name: Daily trade contact discovery
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7,37 * * *'
+    - cron: '7,37 * * * *'
 permissions:
   contents: read
 concurrency:
