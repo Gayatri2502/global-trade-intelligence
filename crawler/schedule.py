@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import time
 from urllib import error, request
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from run import run
@@ -66,7 +67,12 @@ def execute(source, schedule, now, manual=False, dry_run=False):
     started = datetime.now(timezone.utc).isoformat()
     run_id = f'{source}:{slot}' if not manual else f'{source}:manual:{os.getenv("GITHUB_RUN_ID", started)}'
     config = json.loads((ROOT/'config.json').read_text())
-    config['sources'] = [row for row in config['sources'] if not row['url'].endswith('.pdf')]
+    hosts = set(schedule.get('hosts', []))
+    config['sources'] = [row for row in config['sources']
+                         if not urlsplit(row['url']).path.lower().endswith('.pdf')
+                         and (not hosts or (urlsplit(row['url']).hostname or '').removeprefix('www.') in hosts)]
+    if not config['sources']:
+        raise ValueError('No reviewed company pages match this job')
     config['search_queries'] = []
     leads, stats = run(config)
     summary = dict(started_at=started, slot=slot, discovered=len(leads),
@@ -87,15 +93,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--manual', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--source', help='Run only this configured source job')
     args = parser.parse_args()
     config = json.loads((ROOT/'schedule.json').read_text())
     now = datetime.now(ZoneInfo(config['timezone']))
     success = True
+    if args.source and args.source not in config['sources']:
+        parser.error('Unknown source job')
     for source, schedule in config['sources'].items():
-        if not schedule['enabled']:
+        if not schedule['enabled'] or (args.source and args.source != source):
             continue
         try:
-            if source != 'public-company-sites':
+            if schedule.get('adapter', 'public-company-sites') != 'public-company-sites':
                 raise ValueError('Source adapter is not implemented')
             success = execute(source, schedule, now, args.manual, args.dry_run) and success
         except Exception as exc:
