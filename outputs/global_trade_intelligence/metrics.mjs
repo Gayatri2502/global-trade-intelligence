@@ -3,13 +3,14 @@ export const sum=(rows,key)=>rows.reduce((s,x)=>s+(isNum(x[key])?x[key]:0),0);
 export const ratio=(a,b)=>isNum(a)&&isNum(b)&&b>0?a/b:null;
 export const active=d=>!['Closed','Lost','Invoiced'].includes(d.stage);
 export const inYear=(date,year)=>!!date&&(year==='All recorded'||String(date).slice(0,4)===String(year));
-const match=(value,selected)=>selected==='All'||String(value||'').toLowerCase().includes(String(selected).toLowerCase());
+const match=(value,selected)=>selected==='All'||String(value||'').trim().toLowerCase()===String(selected).trim().toLowerCase();
 const searched=(obj,q)=>!q||Object.values(obj).some(v=>typeof v==='string'&&v.toLowerCase().includes(q.toLowerCase()));
 export function filterModel(model,s){
  const unambiguous=rows=>{const counts=new Map();rows.forEach(x=>counts.set(x.id,(counts.get(x.id)||0)+1));return rows.filter(x=>x.id&&counts.get(x.id)===1);};
  model={...model,contacts:unambiguous(model.contacts),deals:unambiguous(model.deals),calls:unambiguous(model.calls),cash:unambiguous(model.cash),milestones:unambiguous(model.milestones)};
- let contacts=model.contacts.filter(c=>match(c.product,s.product)&&match(c.role,s.role)&&match(c.priority,s.priority)&&(!s.verified||c.verified)&&(!s.country||c.country===s.country)&&(c.role==='Buyer'?match(c.country,s.destination):match(c.country,s.origin))&&(!c.discovered||s.year==='All recorded'||c.discovered.slice(0,4)<=s.year)&&searched(c,s.q));
- let deals=model.deals.filter(d=>match(d.product,s.product)&&match(d.origin,s.origin)&&match(d.destination,s.destination)&&match(d.stage,s.stage)&&(!s.country||d.origin===s.country||d.destination===s.country));
+ let contacts=model.contacts.filter(c=>match(c.product,s.product)&&match(c.role,s.role)&&match(c.priority||'Unassessed',s.priority)&&(!s.verified||c.verified)&&(!s.country||c.country===s.country)&&(c.role==='Buyer'?match(c.country,s.destination):match(c.country,s.origin))&&(!c.discovered||s.year==='All recorded'||c.discovered.slice(0,4)<=s.year)&&searched(c,s.q));
+ const dealDates=d=>[d.invoiceDate,d.expectedClose,d.completedDate,d.commissionEarnedDate].filter(Boolean);
+ let deals=model.deals.filter(d=>match(d.product,s.product)&&match(d.origin,s.origin)&&match(d.destination,s.destination)&&match(d.stage,s.stage)&&(!dealDates(d).length||dealDates(d).some(day=>inYear(day,s.year)))&&(!s.country||d.origin===s.country||d.destination===s.country));
  const cmap=new Map(model.contacts.map(c=>[c.id,c]));
  if(s.priority!=='All')deals=deals.filter(d=>match(cmap.get(d.buyerId)?.priority,s.priority));
  if(s.role!=='All'||s.verified)deals=deals.filter(d=>contacts.some(c=>c.id===d.buyerId||c.id===d.supplierId));
@@ -19,8 +20,14 @@ export function filterModel(model,s){
  const calls=model.calls.filter(c=>ids.has(c.contactId)&&inYear(c.date,s.year));
  const cash=model.cash.filter(c=>(!c.dealId||dids.has(c.dealId))&&inYear(c.date,s.year));
  const milestones=model.milestones.filter(m=>dids.has(m.dealId));
+ const discovery=(model.discovery||[]).filter(c=>{
+  const role=/grower|supplier/i.test(c.role)&&!/import|buy/i.test(c.role)?'Grower / supplier':/export/i.test(c.role)&&!/import|buy/i.test(c.role)?'Exporter':'Buyer';
+  return match(c.product,s.product)&&match(role,s.role)&&match(c.priority||'Unassessed',s.priority)
+   &&match(c.country,role==='Buyer'?s.destination:s.origin)&&(!s.verified||c.verification==='Verified')
+   &&(!s.country||c.country===s.country)&&searched(c,s.q);
+ });
  const market=model.market.filter(m=>match(m.product,s.product)&&match(m.destination,s.destination)&&(!s.country||m.destination===s.country)&&inYear(m.date,s.year)&&searched(m,s.q));
- return {...model,contacts,deals,calls,cash,milestones,market,periodDeals:deals.filter(d=>inYear(d.invoiceDate,s.year)),periodCommissions:deals.filter(d=>inYear(d.commissionEarnedDate,s.year))};
+ return {...model,contacts,deals,calls,cash,milestones,market,discovery,periodDeals:deals.filter(d=>inYear(d.invoiceDate,s.year)),periodCommissions:deals.filter(d=>inYear(d.commissionEarnedDate,s.year))};
 }
 export function summary(data,today=new Date().toISOString().slice(0,10)){
  const buyers=data.contacts.filter(c=>c.role==='Buyer'),suppliers=data.contacts.filter(c=>c.role!=='Buyer');

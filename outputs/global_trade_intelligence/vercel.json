@@ -2,9 +2,41 @@
   "framework": null,
   "outputDirectory": "public",
   "rewrites": [
-    {"source": "/api/ledger", "destination": "/api/private"},
-    {"source": "/api/import", "destination": "/api/private"},
-    {"source": "/auth/:path", "destination": "/api/private"},
-    {"source": "/api/map", "destination": "/world.geojson"}
+    {
+      "source": "/",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/index.html",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/login",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/api/ledger",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/api/import",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/auth/callback",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/auth/logout",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/auth/login",
+      "destination": "/api/private"
+    },
+    {
+      "source": "/api/map",
+      "destination": "/world.geojson"
+    }
   ]
 }

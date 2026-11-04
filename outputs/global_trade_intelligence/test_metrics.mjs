@@ -17,3 +17,10 @@ const missing={...model,deals:[{...d,contribution:null}]};assert.equal(summary(f
 const duplicateCalls={...model,calls:[...model.calls,...model.calls]};assert.equal(summary(filterModel(duplicateCalls,state)).invoiceRevenue,10000);
 const refunded={...model,cash:[...model.cash,{id:'SYNTHETIC-R1',dealId:d.id,date:'2026-02-06',type:'Payment',category:'Customer refund',amount:1000},{id:'SYNTHETIC-R2',dealId:d.id,date:'2026-02-06',type:'Payment',category:'Commission refund',amount:100}]};assert.equal(summary(filterModel(refunded,state)).customerCash,5000);assert.equal(summary(filterModel(refunded,state)).commissionReceived,400);assert.equal(performance(filterModel(refunded,state),{...state,metric:'commission'}).totalB,400);
 console.log('PASS: invoice/contribution, cash/commission separation, receivables, cohort rates, filters, metric switches, missing-data handling and no deal multiplication. Synthetic fixtures were never written to the workbook.');
+
+const filterFixture={...model,discovery:[
+ {id:'D1',name:'Test Buyer',country:'India',role:'Importer',product:'Moringa'},
+ {id:'D2',name:'Test Seller',country:'India',role:'Exporter',product:'Moringa powder'}
+]};
+assert.deepEqual(filterModel(filterFixture,{...state,role:'Buyer',destination:'India',product:'Moringa'}).discovery.map(row=>row.id),['D1']);
+assert.equal(filterModel(filterFixture,{...state,year:'2025'}).deals.length,0);

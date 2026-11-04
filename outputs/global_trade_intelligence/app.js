@@ -18,10 +18,10 @@ function toast(text){$('#toast').textContent=text;$('#toast').classList.add('sho
 function select(id,label,values,value){return`<div class="filter"><label for="${id}">${label}</label><select id="${id}" data-filter="${id}">${values.map(v=>`<option value="${esc(v)}" ${String(value)===String(v)?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`;}
 function renderNav(){$('#nav').innerHTML=groups.map(([label,items])=>`<div class="nav-group">${label.toUpperCase()}</div>${items.map(([id,title,ic])=>`<button class="nav-item ${state.page===id?'active':''}" data-page="${id}" title="${esc(title)}" aria-current="${state.page===id?'page':'false'}">${icon(ic)}<span>${title}</span></button>`).join('')}`).join('');}
 function renderFilters(){
- const products=[...new Set([...model.contacts.map(c=>c.product),...model.deals.map(d=>d.product),...model.market.map(m=>m.product)].filter(Boolean))].sort();if(state.product!=='All'&&!products.includes(state.product))state.product='All';
- const countries=[...new Set([...model.contacts.map(c=>c.country),...model.deals.flatMap(d=>[d.origin,d.destination])].filter(Boolean))].sort();
- const years=new Set(['2025','2026','2027',String(model.settings.B12||2026)]);[...model.calls.map(c=>c.date),...model.deals.map(d=>d.invoiceDate),...model.cash.map(c=>c.date),...model.contacts.map(c=>c.discovered)].filter(Boolean).forEach(d=>years.add(d.slice(0,4)));
- $('#filters').innerHTML=select('year','REPORTING PERIOD',[...years].sort().concat('All recorded'),state.year)+select('product','PRODUCT CATEGORY',['All',...products],state.product)+select('origin','ORIGIN / SUPPLIER COUNTRY',['All',...countries],state.origin)+select('destination','DESTINATION / BUYER COUNTRY',['All',...countries],state.destination)+select('role','NETWORK',['All','Buyer','Exporter','Grower / supplier'],state.role)+select('stage','DEAL STAGE',['All','Lead','Quote','Negotiation','Confirmed','Invoiced','Closed','Lost','On hold'],state.stage)+select('priority','PRIORITY',['All','High','Medium','Low','Unassessed'],state.priority)+`<div class="currency-lock">BASE <b>INR</b></div><button class="reset" id="reset">↺ Reset filters</button>`;
+ const products=[...new Set([...model.contacts.map(c=>c.product),...(model.discovery||[]).map(c=>c.product),...model.deals.map(d=>d.product),...model.market.map(m=>m.product)].filter(Boolean))].sort();if(state.product!=='All'&&!products.includes(state.product))state.product='All';
+ const countries=[...new Set([...model.contacts.map(c=>c.country),...(model.discovery||[]).map(c=>c.country),...model.deals.flatMap(d=>[d.origin,d.destination])].filter(Boolean))].sort();
+ const years=new Set(['2025','2026','2027',String(model.settings.B12||2026)]);[...model.calls.map(c=>c.date),...model.deals.flatMap(d=>[d.invoiceDate,d.expectedClose,d.completedDate,d.commissionEarnedDate]),...model.cash.map(c=>c.date),...model.contacts.map(c=>c.discovered)].filter(Boolean).forEach(d=>years.add(d.slice(0,4)));
+ $('#filters').innerHTML=select('year','REPORTING PERIOD',[...years].sort().concat('All recorded'),state.year)+select('product','PRODUCT CATEGORY',['All',...products],state.product)+select('origin','ORIGIN / SUPPLIER COUNTRY',['All',...countries],state.origin)+select('destination','DESTINATION / BUYER COUNTRY',['All',...countries],state.destination)+select('role','NETWORK',['All','Buyer','Exporter','Grower / supplier'],state.role)+select('stage','DEAL STAGE',['All','Lead','Quote','Negotiation','Confirmed','Invoiced','Closed','Lost','On hold'],state.stage)+select('priority','PRIORITY',['All','High','Medium','Low','Unassessed','Exclude'],state.priority)+`<div class="currency-lock">BASE <b>INR</b></div><button class="reset" id="reset">↺ Reset filters</button>`;
 }
 function panel(title,body,tools='',extra=''){return`<section class="panel ${extra}"><div class="panel-header"><div class="panel-title">${title}</div>${tools}</div>${body}</section>`;}
 function kpi(label,value,secondary,note,color,symbol){return`<article class="kpi" style="--accent:${color}"><div class="kpi-label">${label}<span>${symbol}</span></div><div class="kpi-value">${value}</div><div class="kpi-secondary">${secondary}</div><div class="kpi-note">${note}</div></article>`;}
@@ -72,8 +72,11 @@ function table(rows,cols,kind,empty='No records match the current selection',lim
   }
   entries.forEach(({row},index)=>{ordered[index]=row;});
  }
+ if(operationPages[state.page]?.[0]==={deal:'deals',call:'calls',milestone:'milestones',cash:'cash'}[kind]&&kind){
+  cols=[...cols,{key:'edit',label:'Actions',render:r=>`<button data-operation="${esc(r.id)}">Edit</button>`}];
+ }
  currentTable={rows:ordered,cols};const visible=limit?ordered.slice(0,limit):ordered;
- return`<table class="data-table"><thead><tr>${cols.map(c=>`<th class="${c.num?'num':''}" data-sort="${c.key}" title="Sort by ${esc(c.label)}">${esc(c.label)}${sort.key===c.key?`<span class="sort-arrow">${sort.dir===1?'↑':'↓'}</span>`:''}</th>`).join('')}</tr></thead><tbody>${visible.length?visible.map(r=>`<tr class="${kind?'clickable':''}" ${kind?`data-kind="${kind}" data-id="${esc(r.id||r.country||r.product)}"`:''}>${cols.map(c=>`<td class="${c.num?'num':''}" title="${esc(c.render?'':r[c.key]??'N/A')}">${c.render?c.render(r):esc(r[c.key]??'N/A')}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty-row" colspan="${cols.length}"><strong>${esc(empty)}</strong>Update the corresponding source table in Excel, save, then Refresh.</td></tr>`}</tbody></table>`;
+ return`<table class="data-table"><thead><tr>${cols.map(c=>`<th class="${c.num?'num':''}" data-sort="${c.key}" title="Sort by ${esc(c.label)}">${esc(c.label)}${sort.key===c.key?`<span class="sort-arrow">${sort.dir===1?'↑':'↓'}</span>`:''}</th>`).join('')}</tr></thead><tbody>${visible.length?visible.map(r=>`<tr class="${kind?'clickable':''}" ${kind?`data-kind="${kind}" data-id="${esc(r.id||r.country||r.product)}"`:''}>${cols.map(c=>`<td class="${c.num?'num':''}" title="${esc(c.render?'':r[c.key]??'N/A')}">${kind==='contact'&&['priority','score','stage','verified','nextFollowup'].includes(c.key)?contactControl(c.key,r):c.render?c.render(r):esc(r[c.key]??'N/A')}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty-row" colspan="${cols.length}"><strong>${esc(empty)}</strong></td></tr>`}</tbody></table>`;
 }
 function overview(data){const s=summary(data),sourceDates=[...new Set(data.contacts.map(c=>c.discovered).filter(Boolean))],snapshot=sourceDates.length===1?'Single sourced snapshot · '+date(sourceDates[0]):'Published lead discovery dates; not verified network growth';
  const cards=kpi('GLOBAL BUYER NETWORK',fmt(s.buyers),`${s.verifiedBuyers} verified importers · ${pct(s.buyerVerifiedRate)}`,snapshot,'#00d9f5','◎')+kpi('SUPPLIER NETWORK',fmt(s.suppliers),`${s.verifiedSuppliers} verified exporters / suppliers · ${pct(s.supplierVerifiedRate)}`,'Company verification is separate from licence claims','#3d83ff','▱')+kpi('ACTIVE TRADE PIPELINE',fmt(s.active),`${compact(s.pipeline)} weighted pipeline`,s.pipelineMissing?`${s.pipelineMissing} opportunities lack value or probability`:'Current active stages · projected values','#00d9f5','⌁')+kpi('FINANCIAL PERFORMANCE',compact(s.invoiceRevenue),`${compact(s.contribution)} direct trade contribution`,`${s.invoices} invoices · ${s.costCoverage} complete cost records · cash reported separately`,'#16d995','↗');
@@ -82,7 +85,7 @@ function overview(data){const s=summary(data),sourceDates=[...new Set(data.conta
  return`<section class="kpi-grid">${cards}</section><div class="overview-grid">${performancePanel(data)}${intelligencePanel(data)}</div>${panel('LIVE TRADE OPPORTUNITIES',opportunities,`<div class="panel-tools"><span class="muted" style="font-size:8px">${data.deals.length} RECORDS</span><button data-export="true">Export visible CSV ↗</button></div>`,'lower-panel')}`;
 }
 function networkPage(data,page){let rows=data.contacts;if(page==='buyers')rows=rows.filter(c=>c.role==='Buyer');if(page==='exporters')rows=rows.filter(c=>c.role==='Exporter');if(page==='suppliers')rows=rows.filter(c=>c.role==='Grower / supplier');if(page==='priority')rows=rows.filter(c=>isNum(c.score)&&!c.excluded&&!['Won','Lost','On hold'].includes(c.stage)).sort((a,b)=>b.score-a.score);const verified=rows.filter(c=>c.verified).length;
- return`<div class="detail-grid">${smallMetric('COMPANIES IN VIEW',fmt(rows.length),'Unique existing Contact IDs')}${smallMetric('VERIFIED CONTACTS',pct(ratio(verified,rows.length)),verified+' contacts marked verified')}${smallMetric('QUALIFICATION COVERAGE',pct(ratio(rows.filter(c=>isNum(c.score)).length,rows.length)),'Complete, recent evidence required for a score')}</div>${page==='priority'&&rows.length===0?'<div class="notice">No assessed leads are eligible for the call queue. Complete the six ratings, evidence notes or URL, evidence check date and Checked status in the CRM. Unassessed leads remain in their source directories.</div>':''}${panel(pages[page].title.toUpperCase(),`<div class="table-scroll">${table(rows,contactCols,'contact','No eligible companies in this view')}</div><div class="table-note">Click a company for public contact details, source evidence, call history and linked opportunities. Company-country fields are published locations, not factory or shipping verification.</div>`,`<div class="panel-tools"><label style="font-size:9px;color:var(--muted)"><input id="verified-only" type="checkbox" ${state.verified?'checked':''}> Verified only</label><button data-export>Export CSV ↗</button></div>`)}`;
+ return`<div class="detail-grid">${smallMetric('COMPANIES IN VIEW',fmt(rows.length),'Unique existing Contact IDs')}${smallMetric('VERIFIED CONTACTS',pct(ratio(verified,rows.length)),verified+' contacts marked verified')}${smallMetric('QUALIFICATION COVERAGE',pct(ratio(rows.filter(c=>isNum(c.score)).length,rows.length)),'Contacts with a recorded score')}</div>${page==='priority'&&rows.length===0?'<div class="notice">No assessed leads are eligible for the call queue. Complete the six ratings, evidence notes or URL, evidence check date and Checked status in the CRM. Unassessed leads remain in their source directories.</div>':''}${panel(pages[page].title.toUpperCase(),`<div class="table-scroll">${table(rows,[...contactCols,{key:'edit',label:'Actions',render:editContactButton}],'contact','No eligible companies in this view')}</div><div class="table-note">Click a company for public contact details, source evidence, call history and linked opportunities. Company-country fields are published locations, not factory or shipping verification.</div>`,`<div class="panel-tools">${page==='priority'?'':contactTools({buyers:'Buyer',exporters:'Exporter',suppliers:'Grower / supplier'}[page])}<label style="font-size:9px;color:var(--muted)"><input id="verified-only" type="checkbox" ${state.verified?'checked':''}> Verified only</label><button data-export>Export CSV ↗</button></div>`)}`;
 }
 function dealsPage(data,page){let rows=data.deals;if(page==='quotes')rows=rows.filter(d=>d.stage==='Quote');const s=summary(data);
  return`<div class="detail-grid">${smallMetric('ACTIVE OPPORTUNITIES',fmt(s.active),'Excludes invoiced, closed and lost')}${smallMetric('WEIGHTED PIPELINE',compact(s.pipeline),'Expected value × stated win probability')}${smallMetric('COMPLIANCE GAPS',fmt(s.complianceGaps),'Destination checks not marked Yes / Not applicable')}</div>${panel(page==='quotes'?'QUOTATION PIPELINE':'LIVE TRADE OPPORTUNITIES',`<div class="table-scroll">${table(rows,opportunityCols,'deal','No '+(page==='quotes'?'quotation-stage':'trade')+' records have been entered')}</div><div class="table-note">Deal values are estimates until invoiced. Quantity, supplier links, business model, commissions and follow-up fields have been added to Deals. Click a deal to review its costs, cash and milestones.</div>`,`<div class="panel-tools"><button data-export>Export CSV ↗</button></div>`)}`;
@@ -103,13 +106,13 @@ function matchingPage(data){const rows=data.deals.filter(d=>d.buyerId&&d.supplie
 function qualityPage(){const total=model.contacts.length,missingDates=model.contacts.filter(c=>!c.lastVerified).length;return`<div class="detail-grid">${smallMetric('FORMULA ERRORS',fmt(model.meta.formulaErrors),'Cached XLSX error cells scanned on refresh')}${smallMetric('INTEGRITY FINDINGS',fmt(model.issues.length),'Duplicates, missing keys, FX and contact channels')}${smallMetric('CONTACTS AWAITING VERIFICATION',fmt(model.contacts.filter(c=>!c.verified).length),`${missingDates} lack a verification date`)}</div>${panel('DATA INTEGRITY FINDINGS',`<div class="table-scroll">${table(model.issues.map((x,i)=>({...x,id:x.id||i})),[{key:'severity',label:'Severity',render:x=>badge(x.severity,x.severity==='error'?'bad':'warn')},{key:'type',label:'Finding'},{key:'id',label:'Record ID'},{key:'sheet',label:'Workbook sheet'},{key:'row',label:'Excel row'}],null,'No structural findings in current records')}</div>`)}${panel('DATA COVERAGE & EXPLICIT GAPS',`<div class="guide-body"><p>${total} sourced contacts; ${model.deals.length} deals; ${model.calls.length} calls; ${model.cash.length} cash events; ${model.market.length} market observations. No recorded transactions means financial trends are unavailable, not assumed performance.</p><p>New blank model fields: supplier Contact ID, quantity/unit, business model, contract commission, commission FX/earned/due dates, noncash commission credit adjustments, completion date and deal follow-up date. CRM qualification date and call decision-maker/qualification outcome are also explicit.</p><p>Historical stage transitions, verified company coordinates, formal order lines, price-competitiveness evidence, delivery-performance cohorts, operating-cost allocations, product HS codes and independent registry verification are not present. Those measures remain unavailable until supported by evidence.</p><p>Potential duplicate company names are flagged for review. Records are preserved because one company may legitimately appear in multiple product or business roles.</p></div>`,'','section-spacer')}`;}
 function settingsPage(){const s=model.settings;return panel('WORKBOOK SCORING & CONTROL SETTINGS',`<div class="guide-body"><h2>Authoritative settings are in Excel</h2><p>Edit <code>Settings</code> in the operational workbook, save, then Refresh here. This read-only dashboard does not create a second editable configuration database.</p><div class="facts">${fact('High-priority threshold',fmt(s.B10))}${fact('Medium-priority threshold',fmt(s.B11))}${fact('Reporting year',esc(s.B12))}${fact('Base reporting currency',esc(s.B13||'INR'))}${fact('Target contribution margin',pct(s.E10))}${fact('Contact review interval',fmt(s.E11)+' days')}${fact('Market research review interval',fmt(s.E12)+' days')}</div><h2>Display currency</h2><p>INR is the supported reporting base. Original invoice and cash currencies and transaction FX remain visible on detail records. A live multi-currency display requires a dated FX-rate series; no unverified conversion rates are inserted.</p></div>`);}
 function guidePage(){return panel('OPERATING GUIDE & METRIC DEFINITIONS',`<div class="guide-body"><h2>Daily workflow</h2><p>Edit the original workbook at <code>${esc(model.meta.workbook)}</code>. The Source button shows this location; the XLSX download is a separate snapshot. Update the existing CRM, Call log, Deals, Milestones and Cash ledger tables using stable IDs. Save the workbook and press <strong>Refresh</strong> in this terminal. Refresh rereads the file on this computer; it does not scrape websites or synchronize email.</p><h2>Connected records</h2><p>Calls link to Contact ID. Deals link to a buyer Contact ID and optional Supplier Contact ID. Milestones and Cash ledger rows link to Deal ID. Aggregations use each unique deal once; repeated calls and contacts do not multiply invoice values. Data Quality flags duplicate IDs and unknown keys.</p><h2>Financial views</h2><p>Invoice revenue is original net invoice amount × transaction FX, only for Invoiced or Closed deals with invoice dates. Direct trade contribution is invoice revenue less every required direct cost line. Missing cost inputs make contribution unavailable. Neither measure is operating profit.</p><p>Cash inflows/outflows use actual ledger dates and realized FX. Commission earned requires an explicit earned date and contract amount/FX. Commission received uses <code>Commission receipt</code>. Outstanding commission is earned commission minus valid credits and receipts. Commission receipts do not reduce physical-goods trade receivables.</p><h2>Filters and history</h2><p>Product and country filters affect the relevant records and visuals. Origin country applies to suppliers, destination country to buyers. Stage filters select deal stages and their linked companies. Date filters apply to dated activity and financial flows; current networks and open pipeline are snapshots. Network discovery timestamps do not imply historical network growth.</p><p>The performance selector keeps comparable units together: financial amounts with financial amounts, calls with connected calls, or single-series dated qualification/completion counts. Current active pipeline by expected close is labeled projected. No historical stage transitions are inferred.</p><h2>Geographic intelligence</h2><p>Markers represent published company countries using Natural Earth country label positions. They are not verified company, farm, factory or port coordinates. Corridors appear only when an existing deal has both origin and destination countries. Country trade statistics remain unavailable until sourced observations exist.</p><h2>Privacy and maintenance</h2><p>This application is served on <code>127.0.0.1</code>; workbook data is read locally. Contact details appear only in company drawers. The XLSX export includes your operational records, so keep it in a trusted location. Relaunch with <code>Launch Dashboard.command</code>.</p><p>Map boundaries: <a class="cyan" href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noreferrer">Natural Earth public-domain data</a>. Boundaries are illustrative and do not imply a political position.</p></div>`);}
-function render(){if(!model)return;currentData=filterModel(model,state);const info=pages[state.page];$('#page-title').textContent=info.title;$('#heading').textContent=info.title;$('#eyebrow').textContent='TRADE LEDGER / '+info.group.toUpperCase();$('#period-label').textContent=state.year==='All recorded'?'All recorded periods':`01 JAN – 31 DEC ${state.year}`;$('#saved-label').textContent='Workbook saved '+new Date(model.meta.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+(state.country?' · COUNTRY: '+state.country:'');
- let html='';switch(state.page){case'discovery':html=discoveryPage();break;case'overview':html=overview(currentData);break;case'buyers':case'exporters':case'suppliers':case'priority':html=networkPage(currentData,state.page);break;case'deals':case'opportunities':case'quotes':html=dealsPage(currentData,state.page);break;case'calls':html=callingPage(currentData);break;case'followups':html=followupPage(currentData);break;case'products':html=productsPage(currentData);break;case'market':html=marketPage(currentData);break;case'countries':html=countriesPage(currentData);break;case'milestones':case'shipments':case'compliance':html=milestonesPage(currentData,state.page);break;case'cash':html=cashPage(currentData);break;case'finance':case'commission':case'profit':html=financePage(currentData,state.page);break;case'matching':html=matchingPage(currentData);break;case'quality':html=qualityPage();break;case'settings':html=settingsPage();break;case'guide':html=guidePage();break;case'map':html=mapPage(currentData);break;}
- $('#filters').hidden=state.page==='discovery';$('#content').innerHTML=(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();$('#foot-count').textContent=` · ${model.contacts.length} contacts / ${model.deals.length} deals / ${model.cash.length} cash events`;$('#foot-refresh').textContent='LAST READ '+new Date(model.meta.refreshedAt).toLocaleTimeString('en-GB')+' · '+model.meta.formulaErrors+' FORMULA ERRORS';if(state.page==='map')bindMap();}
+function render(){if(!model)return;currentData=filterModel(model,state);const info=pages[state.page]||pages.overview;$('#page-title').textContent=info.title;$('#heading').textContent=info.title;$('#eyebrow').textContent='TRADE LEDGER / '+info.group.toUpperCase();$('#period-label').textContent=state.year==='All recorded'?'All recorded periods':`01 JAN – 31 DEC ${state.year}`;$('#saved-label').textContent='Workbook saved '+new Date(model.meta.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+(state.country?' · COUNTRY: '+state.country:'');
+ let html='';switch(state.page){case'discovery':html=discoveryPage(currentData);break;case'overview':html=overview(currentData);break;case'buyers':case'exporters':case'suppliers':case'priority':html=networkPage(currentData,state.page);break;case'deals':case'opportunities':case'quotes':html=dealsPage(currentData,state.page);break;case'calls':html=callingPage(currentData);break;case'followups':html=followupPage(currentData);break;case'products':html=productsPage(currentData);break;case'market':html=marketPage(currentData);break;case'countries':html=countriesPage(currentData);break;case'milestones':case'shipments':case'compliance':html=milestonesPage(currentData,state.page);break;case'cash':html=cashPage(currentData);break;case'finance':case'commission':case'profit':html=financePage(currentData,state.page);break;case'matching':html=matchingPage(currentData);break;case'quality':html=qualityPage();break;case'settings':html=settingsPage();break;case'guide':html=guidePage();break;case'map':html=mapPage(currentData);break;}
+ $('#content').innerHTML=(operationPages[state.page]?`<div class="panel-tools"><button data-operation="">${operationPages[state.page][1]}</button></div>`:'')+(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();$('#foot-count').textContent=` · ${model.contacts.length} contacts / ${model.deals.length} deals / ${model.cash.length} cash events`;$('#foot-refresh').textContent='LAST READ '+new Date(model.meta.refreshedAt).toLocaleTimeString('en-GB')+' · '+model.meta.formulaErrors+' FORMULA ERRORS';if(state.page==='map')bindMap();}
 function safeLink(url,label){if(!url||!/^https?:\/\//i.test(url))return'N/A';return`<a href="${esc(url)}" target="_blank" rel="noreferrer" class="cyan">${esc(label||url)}</a>`;}
 function fact(label,value,full=false){return`<div class="fact ${full?'full':''}"><span>${esc(label)}</span><b>${value==null||value===''?'N/A':value}</b></div>`;}
 function openDrawer(kind,id){let html='';if(kind==='country'){state.country=id;state.page='map';location.hash='map';render();return;}if(kind==='product'){state.product=id;state.page='products';location.hash='products';renderFilters();render();return;}
- if(kind==='contact'){const c=contactById(id);if(!c)return;const calls=model.calls.filter(x=>x.contactId===id),deals=model.deals.filter(d=>d.buyerId===id||d.supplierId===id);html=`<div class="drawer-eyebrow">COMPANY RECORD / ${esc(c.id)}</div><h2 class="drawer-title">${esc(c.name)}</h2><div class="drawer-meta">${esc(c.role)} · ${esc(c.country)} · ${esc(c.product)}<br>${esc(c.sheet)} · row ${c.row}</div>${badge(c.verified?'Verified contact':'Contact not independently verified',c.verified?'good':'warn')}<div class="drawer-section"><h3>PUBLIC BUSINESS CONTACTS</h3><div class="facts">${fact('Contact person',esc(c.person||'N/A'))}${fact('Telephone',c.phone?`<a href="tel:${esc(String(c.phone).replace(/[^+\d]/g,''))}">${esc(c.phone)}</a>`:'N/A')}${fact('Business email',c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'N/A')}${fact('Published city / region',esc([c.city,c.region].filter(Boolean).join(', ')||'N/A'))}${fact('Source website',safeLink(c.source,'Open source evidence ↗'),true)}</div></div><div class="drawer-section"><h3>QUALIFICATION & VERIFICATION</h3><div class="facts">${fact('Stage',stageBadge(c.stage))}${fact('Priority',badge(c.priority))}${fact('Evidence-backed score',isNum(c.score)?fmt(c.score)+'/100':'N/A · complete the six ratings and evidence')}${fact('Follow-up',date(c.nextFollowup))}${fact('Source researched',date(c.discovered))}${fact('Last verified',date(c.lastVerified))}${fact('Published registration IDs',esc(c.licence||'N/A'),true)}${fact('Licence document status',esc(c.licenceStatus||'N/A'))}${fact('Licence expiry',date(c.licenceExpiry))}${fact('MOQ / capacity',esc(c.capacity||'N/A'))}${fact('Quoted price',esc(c.quote||'N/A'))}</div><p class="drawer-note">${esc(c.evidence||'No source notes recorded.')}</p></div>${c.role!=="Buyer"?`<div class="drawer-section"><h3>SUPPLIER ASSESSMENT & QUALITY EVIDENCE</h3><div class="facts">${Object.entries(c.ratings||{}).map(([label,value])=>fact(label,isNum(value)?fmt(value)+" / 5":"N/A")).join("")}${fact("Quality audit score","N/A · no audit score field recorded")}${fact("Price competitiveness","N/A · benchmark quotes required")}${fact("Delivery reliability","N/A · dated delivery cohort required")}${fact("Sample approval",deals.length?deals.map(d=>esc(d.sample||"N/A")).join(", "):"N/A · no linked sample record")}</div></div>`:""}<div class="drawer-section"><h3>CALL HISTORY / ${calls.length} EVENTS</h3>${calls.length?calls.map(x=>`<div class="event-card">${date(x.date)} · ${esc(x.channel)} · ${esc(x.outcome)}<small>${esc(x.notes||'')}</small></div>`).join(''):'<p class="drawer-note">No calling activity is recorded for this Contact ID.</p>'}</div><div class="drawer-section"><h3>LINKED OPPORTUNITIES / ${deals.length}</h3>${deals.length?deals.map(d=>`<button data-kind="deal" data-id="${esc(d.id)}">${esc(d.id)} · ${esc(d.product)} →</button>`).join(' '):'<p class="drawer-note">No deals reference this company yet.</p>'}</div>`;
+ if(kind==='contact'){const c=contactById(id);if(!c)return;const calls=model.calls.filter(x=>x.contactId===id),deals=model.deals.filter(d=>d.buyerId===id||d.supplierId===id);html=`<div class="drawer-eyebrow">COMPANY RECORD / ${esc(c.id)}</div><h2 class="drawer-title">${esc(c.name)}</h2><div class="drawer-meta">${esc(c.role)} · ${esc(c.country)} · ${esc(c.product)}<br>${esc(c.sheet)} · row ${c.row}</div>${badge(c.verified?'Verified contact':'Contact not independently verified',c.verified?'good':'warn')}<div class="drawer-section"><h3>PUBLIC BUSINESS CONTACTS</h3><div class="facts">${fact('Contact person',esc(c.person||'N/A'))}${fact('Telephone',c.phone?`<a href="tel:${esc(String(c.phone).replace(/[^+\d]/g,''))}">${esc(c.phone)}</a>`:'N/A')}${fact('Business email',c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'N/A')}${fact('Published city / region',esc([c.city,c.region].filter(Boolean).join(', ')||'N/A'))}${fact('Source website',safeLink(c.source,'Open source evidence ↗'),true)}</div></div><div class="drawer-section"><h3>QUALIFICATION & VERIFICATION</h3><div class="facts">${fact('Stage',stageBadge(c.stage))}${fact('Priority',badge(c.priority))}${fact('Qualification score',isNum(c.score)?fmt(c.score)+'/100':'N/A · complete the six ratings and evidence')}${fact('Follow-up',date(c.nextFollowup))}${fact('Source researched',date(c.discovered))}${fact('Last verified',date(c.lastVerified))}${fact('Published registration IDs',esc(c.licence||'N/A'),true)}${fact('Licence document status',esc(c.licenceStatus||'N/A'))}${fact('Licence expiry',date(c.licenceExpiry))}${fact('MOQ / capacity',esc(c.capacity||'N/A'))}${fact('Quoted price',esc(c.quote||'N/A'))}</div><p class="drawer-note">${esc(c.evidence||'No source notes recorded.')}</p></div>${c.role!=="Buyer"?`<div class="drawer-section"><h3>SUPPLIER ASSESSMENT & QUALITY EVIDENCE</h3><div class="facts">${Object.entries(c.ratings||{}).map(([label,value])=>fact(label,isNum(value)?fmt(value)+" / 5":"N/A")).join("")}${fact("Quality audit score","N/A · no audit score field recorded")}${fact("Price competitiveness","N/A · benchmark quotes required")}${fact("Delivery reliability","N/A · dated delivery cohort required")}${fact("Sample approval",deals.length?deals.map(d=>esc(d.sample||"N/A")).join(", "):"N/A · no linked sample record")}</div></div>`:""}<div class="drawer-section"><h3>CALL HISTORY / ${calls.length} EVENTS</h3>${calls.length?calls.map(x=>`<div class="event-card">${date(x.date)} · ${esc(x.channel)} · ${esc(x.outcome)}<small>${esc(x.notes||'')}</small></div>`).join(''):'<p class="drawer-note">No calling activity is recorded for this Contact ID.</p>'}</div><div class="drawer-section"><h3>LINKED OPPORTUNITIES / ${deals.length}</h3>${deals.length?deals.map(d=>`<button data-kind="deal" data-id="${esc(d.id)}">${esc(d.id)} · ${esc(d.product)} →</button>`).join(' '):'<p class="drawer-note">No deals reference this company yet.</p>'}</div>`;
  }else if(kind==='deal'){const d=model.deals.find(x=>x.id===id);if(!d)return;const rr=risk(d);html=`<div class="drawer-eyebrow">TRADE OPPORTUNITY / ${esc(d.id)}</div><h2 class="drawer-title">${esc(d.product||'Unspecified product')}</h2><div class="drawer-meta">${esc(d.origin||'Unknown origin')} → ${esc(d.destination||'Unknown destination')} · Deals row ${d.row}</div>${stageBadge(d.stage)} ${badge(rr.label,rr.tone)}<div class="drawer-section"><h3>COMMERCIAL DETAILS</h3><div class="facts">${fact('Buyer',`<button data-kind="contact" data-id="${esc(d.buyerId)}">${esc(buyerName(d))} ↗</button>`,true)}${fact('Supplier',d.supplierId?`<button data-kind="contact" data-id="${esc(d.supplierId)}">${esc(supplierName(d))} ↗</button>`:'N/A · add Supplier Contact ID',true)}${fact('Quantity',isNum(d.quantity)?fmt(d.quantity)+' '+esc(d.unit||''):'N/A')}${fact('Business model',esc(d.businessModel||'N/A'))}${fact('Expected deal value',money(d.expectedValue))}${fact('Win probability',pct(d.probability))}${fact('Weighted pipeline',money(d.pipeline))}${fact('Expected close',date(d.expectedClose))}${fact('Incoterm',esc(d.incoterm||'N/A'))}${fact('Next follow-up',date(d.nextFollowup))}</div></div><div class="drawer-section"><h3>INVOICE / CASH / CONTRIBUTION</h3><div class="facts">${fact('Invoice date',date(d.invoiceDate))}${fact('Invoice net sales',money(d.revenue))}${fact('Total direct cost',money(d.directCost))}${fact('Direct trade contribution',money(d.contribution))}${fact('Customer receipts',money(d.receipts))}${fact('Trade receivable',money(d.receivable))}${fact('Invoice due',date(d.invoiceDue))}${fact('Commission earned',money(d.commissionEarned))}${fact('Commission received',money(d.commissionReceived))}${fact('Commission outstanding',money(d.commissionOutstanding))}</div></div><div class="drawer-section"><h3>DIRECT COST LINES / INR</h3><div class="facts">${Object.entries(d.costs).map(([k,v])=>fact(k,money(v))).join('')}</div></div><div class="drawer-section"><h3>COMPLIANCE & EXECUTION</h3><div class="facts">${fact('Import requirements checked',esc(d.compliance||'N/A'))}${fact('Payment security check',esc(d.paymentControl||'N/A'))}${fact('Product / sample approval',esc(d.sample||'N/A'))}${fact('Document folder',safeLink(d.documentFolder,'Open documents ↗'))}</div>${model.milestones.filter(m=>m.dealId===id).map(m=>`<div class="event-card">${esc(m.phase)} · ${esc(m.name)} · ${stageBadge(m.progress)}<small>Due ${date(m.due)} · ${esc(m.blocker||'')}</small></div>`).join('')||'<p class="drawer-note">No linked milestones.</p>'}</div>`;
  }else if(kind==='followup'){const c=currentData.contacts.find(x=>x.id===id);openDrawer(c?'contact':model.deals.some(d=>d.id===id)?'deal':'call',id);return;
  }else if(kind==='call'){const c=model.calls.find(x=>x.id===id);if(!c)return;html=`<div class="drawer-eyebrow">INTERACTION / ${esc(c.id)}</div><h2 class="drawer-title">${esc(c.outcome||'Call record')}</h2><div class="drawer-meta">Call log · row ${c.row}</div><div class="facts">${fact('Company',`<button data-kind="contact" data-id="${esc(c.contactId)}">${esc(contactById(c.contactId)?.name||c.contactId)} ↗</button>`,true)}${fact('Date',date(c.date))}${fact('Attempt triggered',c.triggered?'Yes':'No')}${fact('Channel',esc(c.channel||'N/A'))}${fact('Decision-maker reached',esc(c.decisionMaker||'N/A'))}${fact('Minutes',fmt(c.duration,1))}${fact('Next follow-up',date(c.followup))}${fact('Next action',esc(c.nextAction||'N/A'),true)}${fact('Call notes',esc(c.notes||'N/A'),true)}</div>`;
@@ -128,14 +131,30 @@ function mapPage(data){const countries=[...new Set(data.contacts.map(c=>c.countr
  return`<div class="notice">Published company-country locations only. Markers are country label positions, not verified factory, farm, office or port coordinates. Corridors require recorded deal endpoints.</div><div class="map-layout">${panel('GLOBAL TRADE NETWORK',`<div class="map-layers"><label><input id="layer-buyers" type="checkbox" ${state.showBuyers?'checked':''}> Buyer layer</label><label><input id="layer-suppliers" type="checkbox" ${state.showSuppliers?'checked':''}> Supplier layer</label><label><input id="map-verified" type="checkbox" ${state.verified?'checked':''}> Verified only</label></div><div class="map-wrap">${geo?`<svg id="world-map" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}" aria-label="Country-level buyer and supplier map"><g>${svg}</g></svg>`:'<div class="empty-block"><b>Country boundary file unavailable</b>The country summary and directory remain available.</div>'}<div class="map-tools"><button id="map-zoom-in" aria-label="Zoom map in">+</button><button id="map-zoom-out" aria-label="Zoom map out">−</button><button id="map-reset">Reset map</button></div><div class="map-legend"><span class="buyer">Buyers</span><span class="seller">Suppliers</span><span class="amber">— Recorded deal corridor</span></div></div><div class="map-coverage">${countries.length} countries · ${countries.filter(c=>position(c)).length} mapped countries · ${data.deals.filter(d=>d.origin&&d.destination).length} known deal endpoints · Natural Earth public-domain boundaries</div>`)}${panel('COUNTRY INTELLIGENCE',`<div class="map-summary"><h2>${esc(state.country||'Global network')}</h2><p>${state.country?'Selected country · click a company for details':'Select a marker or country to inspect its network'}</p><div class="country-stats"><div class="country-stat">POTENTIAL BUYERS<b>${mapContacts.filter(c=>c.role==='Buyer').length}</b></div><div class="country-stat">SUPPLIERS<b>${mapContacts.filter(c=>c.role!=='Buyer').length}</b></div><div class="country-stat">ACTIVE OPPORTUNITIES<b>${mapDeals.filter(active).length}</b></div><div class="country-stat">PIPELINE INR<b>${compact(sum(mapDeals,'pipeline'))}</b></div></div><div class="map-companies">${mapContacts.map(c=>`<div class="company-mini" data-kind="contact" data-id="${esc(c.id)}"><b>${esc(c.name)}</b><span>${esc(c.role)} · ${esc(c.product)} · ${esc(c.country)}</span></div>`).join('')||'<div class="empty-block">No company records for this country in the filtered source.</div>'}</div></div>`)} </div>`;
 }
 function bindMap(){const svg=$('#world-map');if(!svg)return;const zoom=f=>{const cx=mapView.x+mapView.w/2,cy=mapView.y+mapView.h/2;mapView.w=Math.min(440,Math.max(45,mapView.w*f));mapView.h=mapView.w/2;mapView.x=cx-mapView.w/2;mapView.y=cy-mapView.h/2;svg.setAttribute('viewBox',`${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}`);};$('#map-zoom-in').onclick=()=>zoom(.75);$('#map-zoom-out').onclick=()=>zoom(1.33);$('#map-reset').onclick=()=>{mapView={x:-180,y:-90,w:360,h:180};state.country=null;render();};svg.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?.9:1.1);},{passive:false});let drag=null,moved=false;svg.onpointerdown=e=>{if(e.button!==0)return;drag={x:e.clientX,y:e.clientY,view:{...mapView}};moved=false;};svg.onpointermove=e=>{if(!drag)return;const dx=(e.clientX-drag.x)/svg.clientWidth*mapView.w,dy=(e.clientY-drag.y)/svg.clientHeight*mapView.h;if(Math.abs(dx)+Math.abs(dy)>1)moved=true;mapView.x=drag.view.x-dx;mapView.y=drag.view.y-dy;svg.setAttribute('viewBox',`${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}`);};svg.onpointerup=e=>{drag=null;if(moved){e.stopPropagation();setTimeout(()=>moved=false,0);}};svg.onclick=e=>{if(moved)return;const country=e.target.closest('[data-map-country]')?.dataset.mapCountry;if(!country)return;state.country=model.contacts.map(c=>c.country).find(c=>(countryAliases[c]||c)===country)||country;render();};}
-async function refresh(first=false){$('#refresh').disabled=true;$('#refresh-state').textContent='● READING DATA';if(first)$('#content').innerHTML='<div class="loading">Loading records…</div>';try{const res=await fetch('/api/ledger',{cache:'no-store'});if(res.status===401){
- document.dispatchEvent(new Event('trade-session-ended'));
- $('#content').innerHTML='<div class="error-screen"><h2>Sign in to Trade Ledger</h2><p>Access is restricted to the approved Google account.</p><a class="link" href="/auth/login">Sign in with Google ↗</a></div>';
- $('#refresh-state').textContent='● SIGN-IN REQUIRED';
- return;
-}if(!res.ok)throw new Error((await res.json()).error||'Database read failed');const payload=await res.json();model=payload.model||payload; if(payload.records){ ledgerRows=payload.records; for(const collection of ['contacts','calls','deals','milestones','cash'])model[collection]=ledgerRows.filter(row=>row.collection===collection&&!row.archived).map(row=>row.data); for(const collection of ['contacts','calls','deals','milestones','cash'])model.meta.coverage[collection]=model[collection].length; }document.dispatchEvent(new Event('trade-model-loaded'));const filled=model.contacts.reduce((n,c)=>n+[c.id,c.name,c.product,c.country,c.source,c.phone||c.email].filter(Boolean).length,0);const completeness=model.contacts.length?filled/(model.contacts.length*6):null;$('#data-completeness').textContent='LEAD FIELDS '+pct(completeness);if(first)state.year=String(model.settings.B12||2026);$('#refresh-state').textContent='● SOURCE CONNECTED';renderFilters();render();if(!first)toast('Latest records loaded.');}catch(e){$('#refresh-state').textContent='● SOURCE UNAVAILABLE';$('#content').innerHTML=`<div class="error-screen"><h2>Workbook connection unavailable</h2><p>${esc(e.message)}</p><p>Check the workbook sync, then click Refresh.</p></div>`;}finally{$('#refresh').disabled=false;}}
+async function refresh(first=false){$('#refresh').disabled=true;$('#refresh-state').textContent='● READING DATA';if(first)$('#content').innerHTML='<div class="loading">Loading records…</div>';try{const res=await fetch('/api/ledger',{cache:'no-store'});if(res.status===401){ location.replace('/login'); return; }if(!res.ok)throw new Error((await res.json()).error||'Database read failed');const payload=await res.json();model=payload.model||payload; if(payload.records){ ledgerRows=payload.records; for(const collection of ['contacts','calls','deals','milestones','cash'])model[collection]=ledgerRows.filter(row=>row.collection===collection&&!row.archived).map(row=>row.data); for(const collection of ['contacts','calls','deals','milestones','cash'])model.meta.coverage[collection]=model[collection].length; }
+ const discoveryEdits=model.contacts.filter(contact=>contact.discovery);
+ const overrides=new Set(discoveryEdits.map(contact=>contact.discoverySourceId));
+ const cashByDeal=new Map();
+ for(const entry of model.cash){
+  if(!entry.dealId||!isNum(entry.amount)||!['Receipt','Payment'].includes(entry.type))continue;
+  const totals=cashByDeal.get(entry.dealId)||{receipts:0,commission:0};
+  if(entry.category==='Commission receipt'&&entry.type==='Receipt')totals.commission+=entry.amount;
+  else if(entry.category==='Commission refund'&&entry.type==='Payment')totals.commission-=entry.amount;
+  else if(entry.category==='Customer refund'&&entry.type==='Payment')totals.receipts-=entry.amount;
+  else if(entry.type==='Receipt')totals.receipts+=entry.amount;
+  cashByDeal.set(entry.dealId,totals);
+ }
+ model.deals=model.deals.map(deal=>{
+  const totals=cashByDeal.get(deal.id);
+  if(!totals)return deal;
+  return {...deal,receipts:totals.receipts,commissionReceived:totals.commission,
+   receivable:isNum(deal.revenue)?Math.max(0,deal.revenue-totals.receipts):null,
+   commissionOutstanding:isNum(deal.commissionEarned)?Math.max(0,deal.commissionEarned-totals.commission-(deal.commissionCredit||0)):null};
+ });
+ model.discovery=[...(model.discovery||[]).map((contact,index)=>({...contact,id:contact.id||'DISCOVERY-'+index})).filter(contact=>!overrides.has(contact.id)),...discoveryEdits.map(contact=>({...contact,verification:contact.verified?'Verified':'Unverified'}))];
+ document.dispatchEvent(new Event('trade-model-loaded'));const filled=model.contacts.reduce((n,c)=>n+[c.id,c.name,c.product,c.country,c.source,c.phone||c.email].filter(Boolean).length,0);const completeness=model.contacts.length?filled/(model.contacts.length*6):null;$('#data-completeness').textContent='LEAD FIELDS '+pct(completeness);if(first)state.year=String(model.settings.B12||2026);$('#refresh-state').textContent='● SOURCE CONNECTED';renderFilters();render();if(!first)toast('Latest records loaded.');}catch(e){$('#refresh-state').textContent='● SOURCE UNAVAILABLE';$('#content').innerHTML=`<div class="error-screen"><h2>Database connection unavailable</h2><p>${esc(e.message)}</p><p>Try Refresh records.</p></div>`;}finally{$('#refresh').disabled=false;}}
 function exportCSV(){if(!currentTable)return;const{rows,cols}=currentTable;const safe=x=>{let s=String(x??'');if(/^[=+@-]/.test(s))s="'"+s;return'"'+s.replaceAll('"','""')+'"';};const csv=[cols.map(c=>safe(c.label)).join(','),...rows.map(r=>cols.map(c=>safe(r[c.key])).join(','))].join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=`trade-${state.page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-document.addEventListener('click',e=>{if(e.target.closest('#source-info')){$('#drawer').innerHTML=`<button class="drawer-close" aria-label="Close details">×</button><div class="drawer-eyebrow">OPERATIONAL SOURCE</div><h2 class="drawer-title">Connected Excel workbook</h2><p class="drawer-note">Edit and save this original file, then Refresh. The XLSX download creates a separate copy and does not change the connected file.</p><div class="drawer-section"><div class="fact"><span>Original source path</span><b>${esc(model.meta.workbook)}</b></div><button data-copy-source style="margin-top:15px">Copy file path</button></div>`;$('#drawer').hidden=false;$('#drawer-cover').hidden=false;return;}if(e.target.closest('[data-copy-source]')){navigator.clipboard.writeText(model.meta.workbook).then(()=>toast('Original workbook path copied.')).catch(()=>toast('Select and copy the visible path.'));return;}const page=e.target.closest('[data-page]');if(page){state.page=page.dataset.page;state.country=null;sort={key:null,dir:1};location.hash=state.page;render();return;}const record=e.target.closest('[data-kind]');if(record){openDrawer(record.dataset.kind,record.dataset.id);return;}if(e.target.closest('.drawer-close')||e.target===$('#drawer-cover')){closeDrawer();return;}const country=e.target.closest('[data-country-filter]');if(country){state.destination=country.dataset.countryFilter;state.country=null;renderFilters();render();toast('Destination filter: '+state.destination);return;}const product=e.target.closest('[data-product-filter]');if(product){state.product=product.dataset.productFilter;renderFilters();render();return;}const th=e.target.closest('[data-sort]');if(th){sort={key:th.dataset.sort,dir:sort.key===th.dataset.sort?-sort.dir:1};render();return;}if(e.target.closest('[data-export]'))exportCSV();if(e.target.closest('#reset')){Object.assign(state,{year:String(model.settings.B12||2026),metric:'finance',grain:'month',product:'All',origin:'All',destination:'All',role:'All',stage:'All',priority:'All',q:'',country:null,verified:false});$('#search').value='';renderFilters();render();}});
+document.addEventListener('click',e=>{if(e.target.closest('input,select,button[data-edit],button[data-add],button[data-multiple],button[data-operation]'))return;const page=e.target.closest('[data-page]');if(page){state.page=page.dataset.page;state.country=null;sort={key:null,dir:1};location.hash=state.page;render();return;}const record=e.target.closest('[data-kind]');if(record){openDrawer(record.dataset.kind,record.dataset.id);return;}if(e.target.closest('.drawer-close')||e.target===$('#drawer-cover')){closeDrawer();return;}const country=e.target.closest('[data-country-filter]');if(country){state.destination=country.dataset.countryFilter;state.country=null;renderFilters();render();toast('Destination filter: '+state.destination);return;}const product=e.target.closest('[data-product-filter]');if(product){state.product=product.dataset.productFilter;renderFilters();render();return;}const th=e.target.closest('[data-sort]');if(th){sort={key:th.dataset.sort,dir:sort.key===th.dataset.sort?-sort.dir:1};render();return;}if(e.target.closest('[data-export]'))exportCSV();if(e.target.closest('#reset')){Object.assign(state,{year:String(model.settings.B12||2026),metric:'finance',grain:'month',product:'All',origin:'All',destination:'All',role:'All',stage:'All',priority:'All',q:'',country:null,verified:false});$('#search').value='';renderFilters();render();}});
 document.addEventListener('change',e=>{if(e.target.matches('[data-filter]')){state[e.target.dataset.filter]=e.target.value;state.country=null;render();}if(e.target.id==='metric'){state.metric=e.target.value;render();}if(e.target.id==='grain'){state.grain=e.target.value;render();}if(['verified-only','map-verified'].includes(e.target.id)){state.verified=e.target.checked;render();}if(e.target.id==='layer-buyers'){state.showBuyers=e.target.checked;render();}if(e.target.id==='layer-suppliers'){state.showSuppliers=e.target.checked;render();}});
 let searchTimer;$('#search').addEventListener('input',e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.q=e.target.value.trim();render();},150);});$('#refresh').onclick=()=>refresh();
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();$('#tooltip').hidden=true;}if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)){e.preventDefault();$('#search').focus();}});
@@ -143,79 +162,13 @@ document.addEventListener('pointermove',e=>{const dot=e.target.closest('[data-ch
 window.addEventListener('hashchange',()=>{const p=location.hash.slice(1);if(pages[p]&&p!==state.page){state.page=p;sort={key:null,dir:1};render();}});
 renderNav();fetch('/api/map').then(r=>r.ok?r.json():null).then(x=>{geo=x;if(model&&state.page==='map')render();}).catch(()=>{});refresh(true);
 
-function discoveryPage(){
- const all=model.discovery||[],q=state.q.toLowerCase(),rows=all.filter(r=>!q||[r.name,r.product,r.country,r.role,r.phone,r.email].some(x=>String(x||'').toLowerCase().includes(q)));
- return `<div class="detail-grid">${smallMetric('SOURCED COMPANIES',fmt(all.length),'Distinct discovery IDs; excludes qualification assumptions')}${smallMetric('PUBLISHED PHONE',fmt(all.filter(r=>r.phone&&r.phone!=='NA').length),'Public numbers; not called or reachability verified')}${smallMetric('AWAITING VERIFICATION',fmt(all.filter(r=>r.verification!=='Verified').length),'Licences and trade readiness require review')}</div>`+panel('PUBLIC BUSINESS CONTACT DIRECTORY',`<div class="table-note">Search companies, products, countries, phone or email using the search field above. Click column headings to sort. These are sourced leads; operational network KPIs remain separate. Missing details are NA. Some directory entries are historical; read the evidence before outreach.</div><div class="table-scroll">${table(rows,[{key:'name',label:'Company'},{key:'role',label:'Published role'},{key:'product',label:'Product'},{key:'country',label:'Country'},{key:'phone',label:'Business phone'},{key:'email',label:'Business email'},{key:'verification',label:'Verification',render:r=>badge(r.verification,'warn')},{key:'source',label:'Source',render:r=>safeLink(r.source,'Evidence ↗')},{key:'evidence',label:'Evidence / limitations'},{key:'notes',label:'Review notes'}],null)}</div>`,`<button data-export>Export visible CSV ↗</button>`);
+function discoveryPage(data){
+ const rows=data.discovery,all=rows;
+ return `<div class="detail-grid">${smallMetric('SOURCED COMPANIES',fmt(all.length),'Distinct discovery IDs; excludes qualification assumptions')}${smallMetric('PUBLISHED PHONE',fmt(all.filter(r=>r.phone&&r.phone!=='NA').length),'Public numbers; not called or reachability verified')}${smallMetric('AWAITING VERIFICATION',fmt(all.filter(r=>r.verification!=='Verified').length),'Licences and trade readiness require review')}</div>`+panel('PUBLIC BUSINESS CONTACT DIRECTORY',`<div class="table-scroll">${table(rows,[{key:'name',label:'Company'},{key:'role',label:'Published role'},{key:'product',label:'Product'},{key:'country',label:'Country'},{key:'phone',label:'Business phone'},{key:'email',label:'Business email'},{key:'verification',label:'Verification',render:r=>badge(r.verification,'warn')},{key:'source',label:'Source',render:r=>safeLink(r.source,'Evidence ↗')},{key:'evidence',label:'Evidence / limitations'},{key:'notes',label:'Review notes'},{key:'edit',label:'Actions',render:editContactButton}],'discovery')}</div>`,`${contactTools("Buyer",true)}<button data-export>Export visible CSV ↗</button>`);
 }
 
 if (location.hostname === '127.0.0.1') {
  setInterval(() => { if (!$('#refresh').disabled) refresh(); }, 60000);
-}
-
-{
- const manage = document.createElement('button');
- manage.textContent = 'Manage records';
- $('#refresh').after(manage);
- manage.hidden=true;
- document.addEventListener('trade-session-ended',()=>{ manage.hidden=true; });
- document.addEventListener('trade-model-loaded',()=>{ manage.hidden=false; });
- manage.onclick = () => {
-  const dialog = document.createElement('dialog');
-  dialog.style.cssText = 'background:#101d30;color:#eaf2fc;border:1px solid #3d83ff;padding:1.25rem;width:min(580px,90vw)';
-  dialog.innerHTML = '<h2>Manage database records</h2><label>Collection <select><option>contacts</option><option>calls</option><option>deals</option><option>milestones</option><option>cash</option></select></label> <label>Record <select></select></label><p>Record fields</p><textarea aria-label="Record fields" rows="12" style="width:100%"></textarea><p role="status"></p><button>Save record</button> <button>Archive</button> <button>Close</button>';
-  const [collection, picker] = dialog.querySelectorAll('select');
-  const fields = dialog.querySelector('textarea');
-  const status = dialog.querySelector('[role=status]');
-  const [save, archive, close] = dialog.querySelectorAll('button');
-  const selected = () => ledgerRows.find(row => row.collection === collection.value && row.record_id === picker.value);
-  const defaults = {
-   contacts:{name:'',role:'Buyer',product:'',country:'',stage:'New'},
-   calls:{contactId:'',date:'',channel:'Phone',outcome:'',triggered:true,notes:'',followup:''},
-   deals:{buyerId:'',supplierId:'',product:'',stage:'Lead',expectedValue:null,probability:null},
-   milestones:{dealId:'',name:'',due:'',progress:'Pending'},
-   cash:{dealId:'',date:'',direction:'Inflow',amount:null}
-  };
-  function loadRecord() {
-   const row = selected();
-   fields.value = JSON.stringify(row?.data || defaults[collection.value], null, 2);
-   archive.disabled = !row;
-   archive.textContent = row?.archived ? 'Restore' : 'Archive';
-  }
-  function listRecords(id='') {
-   picker.replaceChildren(new Option('New record',''));
-   for (const row of ledgerRows.filter(row=>row.collection===collection.value)) {
-    picker.add(new Option((row.data.name || row.record_id)+(row.archived?' (archived)':''),row.record_id));
-   }
-   picker.value=id;
-   loadRecord();
-  }
-  async function submit(toggleArchive) {
-   const row=selected();
-   save.disabled=archive.disabled=collection.disabled=picker.disabled=true;
-   try {
-    const record=toggleArchive ? row.data : JSON.parse(fields.value);
-    if (!record || typeof record!=='object'||Array.isArray(record)) throw Error('Enter a record object.');
-    record.id=row?.record_id || 'TL-'+crypto.randomUUID();
-    if (collection.value==='contacts' && !String(record.name||'').trim()) throw Error('Enter a company name.');
-    const response=await fetch('/api/ledger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({collection:collection.value,record,revision:row?.revision||0,archived:toggleArchive?!row.archived:row?.archived||false})});
-    const result=await response.json();
-    if(!response.ok) throw Error(result.error);
-    await refresh();
-    listRecords(record.id);
-    status.textContent='Saved to Supabase. Revision '+result.revision+'.';
-   } catch(error) {status.textContent=error.message;}
-   finally {save.disabled=collection.disabled=picker.disabled=false;archive.disabled=!selected();}
-  }
-  collection.onchange=()=>listRecords();
-  picker.onchange=loadRecord;
-  save.onclick=()=>submit(false);
-  archive.onclick=()=>submit(true);
-  close.onclick=()=>dialog.close();
-  dialog.onclose=()=>dialog.remove();
-  document.body.append(dialog);
-  listRecords();
-  dialog.showModal();
- };
 }
 
 {
@@ -274,14 +227,170 @@ if (location.hostname === '127.0.0.1') {
 }
 
 if (location.hostname === 'trade-ledger-seven.vercel.app') {
- const logout=document.createElement('button');
- logout.textContent='Sign out';
- logout.hidden=true;
+ const logout=document.createElement('form');
+ logout.method='POST';
+ logout.action='/auth/logout';
+ logout.innerHTML='<button type="submit">Sign out</button>';
  $('#refresh').after(logout);
- document.addEventListener('trade-model-loaded',()=>{ logout.hidden=false; });
- document.addEventListener('trade-session-ended',()=>{ logout.hidden=true; });
- logout.onclick=async()=>{
-  const response=await fetch('/auth/logout',{method:'POST'});
-  if(response.ok||response.status===403)location.reload();
- };
 }
+
+const roles=['Buyer','Exporter','Grower / supplier'];
+const priorities=['Unassessed','High','Medium','Low','Exclude'];
+const contactStages=['New','Contacted','Qualified','Sample','Negotiating','Won','Lost','On hold'];
+const dealStages=['Lead','Quote','Negotiation','Confirmed','Invoiced','Closed','Lost','On hold'];
+const verification=['Unverified','Verified'];
+const contactFields=[
+ ['name','Company','text',true],['role','Network',roles,true],['product','Product'],['country','Country'],
+ ['person','Contact person'],['phone','Phone','tel'],['email','Email','email'],['source','Source URL','url'],
+ ['city','City'],['region','Region'],['licence','Licence / registration'],['licenceExpiry','Licence expiry','date'],
+ ['capacity','MOQ / capacity'],['quote','Quoted price'],['priority','Priority',priorities,true],
+ ['score','Manual score (0–100)','number'],['stage','Stage',contactStages,true],['verified','Verification',verification,true],
+ ['nextFollowup','Next follow-up','date'],['evidence','Evidence'],['notes','Notes']
+];
+const operationPages={
+ calls:['calls','Log interaction',{channel:'Phone',outcome:'Connected',triggered:true}],
+ deals:['deals','Add deal',{stage:'Lead'}],opportunities:['deals','Add opportunity',{stage:'Lead'}],
+ quotes:['deals','Add quotation',{stage:'Quote'}],milestones:['milestones','Add milestone',{}],
+ shipments:['milestones','Add shipment milestone',{phase:'Dispatch'}],
+ compliance:['milestones','Add document check',{documentRequired:true}],cash:['cash','Add cash event',{type:'Receipt',currency:'INR',fx:1}]
+};
+const operationFields={
+ calls:[['contactId','Company','contact',true],['date','Interaction date','date',true],['channel','Channel',['Phone','Email','WhatsApp','Meeting','Other'],true],['outcome','Outcome',['Connected','No answer','Voicemail','Follow-up requested','Other'],true],['triggered','Attempted','boolean'],['decisionMaker','Decision-maker reached',['Yes','No']],['duration','Minutes','number'],['followup','Follow-up date','date'],['nextAction','Next action'],['notes','Notes']],
+ deals:[['buyerId','Buyer','buyer',true],['supplierId','Supplier','supplier'],['product','Product','text',true],['origin','Origin'],['destination','Destination'],['stage','Deal stage',dealStages,true],['quantity','Quantity','number'],['unit','Unit'],['expectedValue','Expected deal value INR','number'],['probability','Close probability (0–1)','number'],['expectedClose','Expected close','date'],['invoiceDate','Invoice date','date'],['invoiceDue','Invoice due','date'],['completedDate','Completion date','date'],['revenue','Invoiced revenue INR','number'],['directCost','Direct cost INR','number'],['commissionExpected','Expected commission INR','number'],['commissionEarned','Earned commission INR','number'],['commissionEarnedDate','Commission earned date','date'],['commissionDue','Commission due','date'],['nextFollowup','Next follow-up','date'],['compliance','Compliance checked',['Yes','No','Not applicable']],['notes','Notes']],
+ milestones:[['dealId','Deal','deal',true],['name','Milestone','text',true],['phase','Phase',['Planning','Dispatch','Customs','Delivery','Other'],true],['owner','Owner'],['due','Due date','date'],['completed','Completion date','date'],['progress','Status',['Pending','In progress','Complete','Not applicable']],['documentRequired','Document required','boolean'],['verification','Evidence verification',verification],['document','Document URL','url'],['blocker','Blocker / next action']],
+ cash:[['dealId','Deal','deal'],['date','Value date','date',true],['type','Direction',['Receipt','Payment'],true],['category','Category',['Customer receipt','Customer refund','Commission receipt','Commission refund','Supplier payment','Other'],true],['currency','Currency','text',true],['amountOriginal','Original amount','number',true],['fx','FX to INR','number',true],['notes','Notes']]
+};
+function optionsFor(type){
+ if(Array.isArray(type))return type.map(value=>[value,value]);
+ if(type==='boolean')return [['false','No'],['true','Yes']];
+ if(type==='deal')return model.deals.map(row=>[row.id,row.product+' · '+row.id]);
+ if(['contact','buyer','supplier'].includes(type))return model.contacts.filter(row=>type==='contact'||(row.role==='Buyer')===(type==='buyer')).map(row=>[row.id,row.name+' · '+row.id]);
+ return null;
+}
+function fieldControl(field,record,attrs=''){
+ const [key,label,type='text',required]=field;
+ const value=key==='verified'?record.verified?'Verified':'Unverified':record[key]??(type==='boolean'?false:'');
+ const items=optionsFor(type);
+ if(items){
+  const entries=[...items];
+  if(!entries.some(([entry])=>String(entry)===String(value)))entries.unshift([value,value||'Select…']);
+  if(!required&&value!==''&&type!=='boolean'&&!entries.some(([entry])=>entry===''))entries.unshift(['','None']);
+  return `<select name="${key}" aria-label="${label}" ${required?'required':''} ${attrs}>${entries.map(([entry,title])=>`<option value="${esc(entry)}" ${String(entry)===String(value)?'selected':''}>${esc(title)}</option>`).join('')}</select>`;
+ }
+ const bounds=key==='score'?'min="0" max="100" step="1"':key==='probability'?'min="0" max="1" step="any"':type==='number'?'min="0" step="any"':'';
+ return `<input name="${key}" aria-label="${label}" type="${type}" value="${esc(value)}" ${bounds} ${required?'required':''} ${attrs}>`;
+}
+function contactControl(key,record){
+ return fieldControl(contactFields.find(field=>field[0]===key),{priority:'Unassessed',stage:'New',...record},`class="contact-edit" data-field="${key}" data-contact="${esc(record.id)}"`);
+}
+function editContactButton(record){
+ return `<button type="button" data-edit="${esc(record.id||'')}">Edit</button>`;
+}
+function contactTools(role,discovery=false){
+ const attrs=`data-role="${role}" data-discovery="${discovery}"`;
+ return `<button data-add ${attrs}>Add company</button> <button data-multiple ${attrs}>Add multiple</button>`;
+}
+function fieldValue(field,raw){
+ if(field[0]==='verified')return raw==='Verified';
+ if(field[2]==='boolean')return raw==='true';
+ if(field[2]==='number')return raw===''?null:Number(raw);
+ return raw.trim();
+}
+async function postLedger(path,payload){
+ const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+ const result=await response.json().catch(()=>({error:'Request failed. Refresh or sign in again.'}));
+ if(!response.ok)throw Error(result.error||'Could not save.');
+ return result;
+}
+function persistRecord(collection,record,revision){
+ if(collection==='contacts')record.excluded=record.priority==='Exclude';
+ if(collection==='deals'){
+  record.pipeline=isNum(record.expectedValue)&&isNum(record.probability)?record.expectedValue*record.probability:null;
+  record.contribution=isNum(record.revenue)&&isNum(record.directCost)?record.revenue-record.directCost:null;
+ }
+ if(collection==='cash')record.amount=record.amountOriginal*record.fx;
+ return postLedger('/api/ledger',{collection,record,revision,archived:false});
+}
+function recordDialog(title,body,submit){
+ const dialog=document.createElement('dialog');
+ dialog.className='record-editor';
+ dialog.innerHTML=`<form><h2>${title}</h2>${body}<p role="status"></p><button type="submit">Save</button> <button type="button" data-close>Close</button></form>`;
+ const form=dialog.querySelector('form'), status=dialog.querySelector('[role=status]');
+ const save=form.querySelector('[type=submit]');
+ form.querySelector('[data-close]').onclick=()=>dialog.close();
+ dialog.onclose=()=>dialog.remove();
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  save.disabled=true;
+  status.textContent='Saving…';
+  try{
+   const message=await submit(new FormData(form));
+   dialog.close();
+   await refresh();
+   toast(message||'Record saved.');
+  }catch(error){status.textContent=error.message;}
+  finally{save.disabled=false;}
+ };
+ document.body.append(dialog);
+ dialog.showModal();
+}
+function openRecordEditor(collection,record,revision=0){
+ const fields=collection==='contacts'?contactFields:operationFields[collection];
+ recordDialog(revision?'Edit record':'Add record',`<div class="editor-fields">${fields.map(field=>`<label>${field[1]}${fieldControl(field,record)}</label>`).join('')}</div>`,async values=>{
+  const data={...record};
+  for(const field of fields)data[field[0]]=fieldValue(field,values.get(field[0]));
+  if(collection==='contacts'&&!data.name)throw Error('Enter a company name.');
+  await persistRecord(collection,data,revision);
+ });
+}
+function openMultiple(role,discovery){
+ recordDialog('Add multiple companies', '<p>Enter one company per line. Separate optional country and product with a tab or a vertical bar.</p><textarea required rows="8" name="companies" aria-label="Companies"></textarea>',async values=>{
+  const lines=values.get('companies').split(/\r?\n/).filter(line=>line.trim());
+  if(!lines.length||lines.length>500)throw Error('Enter between 1 and 500 companies.');
+  const records=lines.map(line=>{
+   const [name,country='',product='']=line.split(/[\t|]/).map(value=>value.trim());
+   if(!name)throw Error('Each line needs a company name.');
+   return {id:'TL-'+crypto.randomUUID(),name,country,product,role,priority:'Unassessed',stage:'New',verified:false,discovery};
+  });
+  const result=await postLedger('/api/import',{records,commit:true});
+  return `Added ${result.imported}. Skipped ${result.skipped} existing companies.`;
+ });
+}
+document.addEventListener('change',async event=>{
+ const control=event.target.closest('.contact-edit');
+ if(!control)return;
+ const row=ledgerRows.find(row=>row.collection==='contacts'&&row.record_id===control.dataset.contact);
+ if(!row||!control.reportValidity())return;
+ const field=contactFields.find(field=>field[0]===control.dataset.field);
+ control.disabled=true;
+ try{
+  await persistRecord('contacts',{...row.data,[field[0]]:fieldValue(field,control.value)},row.revision);
+  await refresh();
+ }catch(error){
+  await refresh();
+  toast(error.message);
+ }finally{control.disabled=false;}
+});
+document.addEventListener('click',event=>{
+ const button=event.target.closest('[data-add],[data-multiple],[data-edit],[data-operation]');
+ if(!button||!model)return;
+ if(button.hasAttribute('data-add')){
+  openRecordEditor('contacts',{id:'TL-'+crypto.randomUUID(),role:button.dataset.role,discovery:button.dataset.discovery==='true',stage:'New',priority:'Unassessed'});
+ }else if(button.hasAttribute('data-multiple')){
+  openMultiple(button.dataset.role,button.dataset.discovery==='true');
+ }else if(button.hasAttribute('data-edit')){
+  const id=button.dataset.edit;
+  const row=ledgerRows.find(row=>row.collection==='contacts'&&row.record_id===id&&!row.archived);
+  if(row)openRecordEditor('contacts',row.data,row.revision);
+  else{
+   const original=(model.discovery||[]).find(record=>record.id===id);
+   if(original)openRecordEditor('contacts',{...original,id:'TL-'+crypto.randomUUID(),discoverySourceId:id,discovery:true,role:roles.includes(original.role)?original.role:'Buyer',stage:'New',priority:'Unassessed',verified:original.verification==='Verified'});
+  }
+ }else{
+  const [collection,,defaults]=operationPages[state.page];
+  const id=button.dataset.operation;
+  const row=ledgerRows.find(row=>row.collection===collection&&row.record_id===id&&!row.archived);
+  if(id&&!row)return;
+  openRecordEditor(collection,row?.data||{id:'TL-'+crypto.randomUUID(),...defaults},row?.revision||0);
+ }
+});

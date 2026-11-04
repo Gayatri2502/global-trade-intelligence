@@ -1,4 +1,5 @@
 """Vercel entry point. All ledger operations require a verified Google session."""
+from pathlib import Path
 from http.cookies import SimpleCookie, CookieError
 import hashlib
 import hmac
@@ -51,6 +52,25 @@ class handler(Handler):
 
     def do_GET(self):
         request = urlsplit(self.path)
+        if request.path in ('/', '/index.html', '/login'):
+            if request.path != '/login' and not self.signed_in():
+                return self.reply(303, location='/login')
+            if request.path == '/login':
+                if self.signed_in():
+                    return self.reply(303, location='/')
+                body = b"""<!doctype html><html lang="en"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in | Trade Ledger</title><link rel="stylesheet" href="/style.css">
+<body class="login-page"><section class="login-card"><p class="eyebrow">TRADE LEDGER</p>
+<h1>Sign in to Trade Ledger</h1><p>Use the approved Google account to access your trading workspace.</p>
+<a class="login-button" href="/auth/login">Sign in with Google</a></section></body></html>"""
+            else:
+                body = (Path(__file__).resolve().parents[1] / 'index.html').read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if request.path == '/auth/login':
             if not all(os.getenv(name) for name in ('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'TRADE_SESSION_SECRET')):
                 return self.reply(503, 'Google sign-in setup is pending.')
@@ -97,10 +117,12 @@ class handler(Handler):
         return super().do_GET()
 
     def do_POST(self):
-        if self.headers.get('Origin') != ORIGIN or not self.signed_in():
+        if self.headers.get('Origin') != ORIGIN:
             return self.reply(403, 'Access denied.')
-        if self.path == '/auth/logout':
-            return self.reply(303, location='/', cookie=self.set_cookie('trade-session', '', 0))
+        if urlsplit(self.path).path == '/auth/logout':
+            return self.reply(303, location='/login', cookie=self.set_cookie('trade-session', '', 0))
+        if not self.signed_in():
+            return self.reply(403, 'Access denied.')
         return self.write_records(ORIGIN)
 
     def do_HEAD(self):

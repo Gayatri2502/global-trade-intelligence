@@ -3,7 +3,7 @@
 The local dashboard at http://127.0.0.1:8765 uses Supabase for operational records. Start it with `python3 server.py` or open **Launch Dashboard.command**. The server uses the existing private signing configuration.
 
 - **Refresh records** reads the current database state.
-- **Manage records** edits or archives contacts, calls, deals, milestones and cash entries using revision checks.
+- Contact tables and operations pages have record-specific forms. Saves use revision checks to detect concurrent edits.
 - **Bulk import** previews CSV or XLSX company rows and inserts new contacts after confirmation.
 
 ## Vercel production
