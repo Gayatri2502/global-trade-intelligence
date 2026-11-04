@@ -167,7 +167,7 @@ async function readRecords(first,quiet){
  if(button.disabled)return;
  const finish=busy(button,'Refreshing…');
  feedback($('#refresh-state'),'loading','Loading records…');
- if(first)$('#content').innerHTML='<div class="ledger-skeleton" role="status"><span>Loading workspace…</span><i></i><i></i><i></i></div>';
+ if(first)$('#content').innerHTML='<div class="ledger-skeleton" role="status"><i class="orbit-loader" aria-hidden="true"></i><span>Loading workspace…</span></div>';
  try{
  const payload=await requestJSON('/api/ledger',{cache:'no-store'});
  model=payload.model||payload; if(payload.records){ ledgerRows=payload.records; for(const collection of ['contacts','calls','deals','milestones','cash'])model[collection]=ledgerRows.filter(row=>row.collection===collection&&!row.archived).map(row=>row.data); for(const collection of ['contacts','calls','deals','milestones','cash'])model.meta.coverage[collection]=model[collection].length; }
