@@ -16,6 +16,22 @@ let model=null,geo=null,currentData=null,currentTable=null,sort={key:null,dir:1}
 const state={page:location.hash.slice(1)||'overview',year:'2026',product:'All',origin:'All',destination:'All',role:'All',stage:'All',priority:'All',q:'',metric:'finance',grain:'month',country:null,verified:false,showBuyers:true,showSuppliers:true};
 if(!pages[state.page])state.page='overview';
 function toast(text,tone='success'){feedback($('#toast'),tone,text);}
+function actionStatus(tone,message,dialog){
+ let target=dialog?.querySelector('.action-feedback');
+ if(dialog&&!target){
+  target=document.createElement('div');
+  target.className='action-feedback';
+  target.setAttribute('role','status');
+  dialog.append(target);
+ }
+ feedback(target||$('#toast'),tone,message);
+}
+const signedInUrl=new URL(location.href);
+if(signedInUrl.searchParams.get('signed-in')==='1'){
+ signedInUrl.searchParams.delete('signed-in');
+ history.replaceState(history.state,'',signedInUrl);
+ actionStatus('success','You have successfully signed in.');
+}
 function select(id,label,values,value){return`<div class="filter"><label for="${id}">${label}</label><select id="${id}" data-filter="${id}">${values.map(v=>`<option value="${esc(v)}" ${String(value)===String(v)?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`;}
 function renderNav(){$('#nav').innerHTML=groups.map(([label,items])=>`<div class="nav-group">${label.toUpperCase()}</div>${items.map(([id,title,ic])=>`<button class="nav-item ${state.page===id?'active':''}" data-page="${id}" title="${esc(title)}" aria-current="${state.page===id?'page':'false'}">${icon(ic)}<span>${title}</span></button>`).join('')}`).join('');}
 function renderFilters(){
@@ -248,11 +264,14 @@ if (location.hostname === '127.0.0.1') {
     const content=btoa(Array.from(bytes,byte=>String.fromCharCode(byte)).join(''));
     if(confirmImport && content!==approved)throw Error('Preview the changed file first.');
     feedback(status,'processing',confirmImport?'Saving companies…':'Checking rows…');
+    if(confirmImport)actionStatus('processing','Saving companies…',dialog);
     const result=await postLedger('/api/import',{name:selected.name,content,commit:confirmImport},uploadController.signal);
     if(confirmImport){
      approved=null;
      feedback(status,result.skipped?'warning':'success',`Imported ${result.imported}. Skipped ${result.skipped} existing companies.`);
      await refresh(false,true,true);
+     actionStatus(result.skipped?'warning':'success',`Added ${result.imported}. Skipped ${result.skipped} existing companies.`,dialog);
+     setTimeout(()=>dialog.querySelector('[data-feedback=success].action-feedback,[data-feedback=warning].action-feedback')?.remove(),2500);
     }else{
      const keys=new Set(ledgerRows.filter(row=>row.collection==='contacts').map(row=>[row.data.name,row.data.country].map(value=>String(value||'').trim().toLowerCase()).join('|')));
      preview.textContent=result.records.map(record=>{
@@ -264,7 +283,7 @@ if (location.hostname === '127.0.0.1') {
      feedback(status,result.errors.length?'warning':'success',`${result.records.length} valid rows. ${result.errors.length} invalid rows.`);
      approved=result.records.length&&!result.errors.length?content:null;
     }
-   }catch(error){if(error.name!=='AbortError')feedback(status,'failed',error.message);}
+   }catch(error){dialog.querySelector('.action-feedback')?.remove();if(error.name!=='AbortError')feedback(status,'failed',error.message);}
    finally{uploadController=null;importing=false;inspect.disabled=file.disabled=close.disabled=false;commit.disabled=!approved;}
   }
   inspect.onclick=()=>{approved=null;send(false);};
@@ -377,13 +396,15 @@ function recordDialog(title,body,submit){
   const finish=busy(save,'Saving…');
   form.querySelector('[data-close]').disabled=true;
   feedback(status,'processing','Saving to the ledger…');
+  actionStatus('processing','Saving to the ledger…',dialog);
   try{
    const message=await submit(new FormData(form));
    dialog.close();
+   actionStatus('processing','Updating your workspace…');
    await refresh(false,true,true);
    if($('#refresh-state').dataset.feedback==='success')toast(message||'Record saved.');
    else toast((message||'Record saved.')+' Refresh to load the latest view.','warning');
-  }catch(error){feedback(status,'failed',error.message);}
+  }catch(error){dialog.querySelector('.action-feedback')?.remove();feedback(status,'failed',error.message);}
   finally{finish();form.querySelector('[data-close]').disabled=false;}
  };
  document.body.append(dialog);
@@ -405,6 +426,7 @@ function openRecordEditor(collection,record,revision=0){
   for(const field of fields)data[field[0]]=fieldValue(field,values.get(field[0]));
   if(collection==='contacts'&&!data.name)throw Error('Enter a company name.');
   await persistRecord(collection,data,revision);
+  return name[0].toUpperCase()+name.slice(1)+(revision?' updated.':' added.');
  });
 }
 function openMultiple(role,discovery){

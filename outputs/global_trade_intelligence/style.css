@@ -80,3 +80,22 @@ button.record-primary:hover:not(:disabled){background:#a1f5e8;color:#062421}
 #toast.show{pointer-events:auto}#toast button,.error-screen button{margin-left:.5rem}
 @media(max-width:680px){.login-layout{grid-template-columns:minmax(0,1fr);max-width:480px}.login-card{grid-row:1}}
 @media(prefers-reduced-motion:reduce){.trade-route,.ledger-skeleton i,[data-feedback]::before{animation:none!important}#toast{transition:none}}
+
+.login-page{place-items:start center;padding:clamp(16px,5vw,64px) 16px;background:radial-gradient(ellipse at 50% 0,#16344c,#090f1a 66%)}
+.login-page .login-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;width:min(100%,850px);max-width:none}
+.trade-illustration{text-align:center}
+.trade-illustration>p:not(.eyebrow){max-width:56ch;margin:10px auto;line-height:1.6}
+.trade-illustration svg{max-width:580px;margin:12px auto}
+.login-entry #login-status{font-size:12px;min-height:1.2em;margin:8px auto}
+.workspace-preview{padding:18px;border:1px solid #29455b;border-radius:15px;background:#0d1828}
+.workspace-preview h2{margin:5px 0 14px}
+.preview-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.preview-steps article{padding:12px;background:#101e30;border:1px solid #29455b;border-radius:8px}
+.preview-steps span{color:#73dfd2;font-size:11px}
+.preview-steps h3{margin:5px 0;font-size:14px}
+.preview-steps p{margin:0;color:#a2b7cc;font-size:12px;line-height:1.5}
+#toast,.action-feedback{position:fixed;top:50%;left:50%;bottom:auto;width:max-content;max-width:min(86vw,360px);box-sizing:border-box;padding:16px 22px;border:1px solid #416881;border-radius:12px;background:#112437;color:#eaf4fb;text-align:center;box-shadow:0 12px 34px #0008;font-size:14px}
+#toast{transform:translate(-50%,-44%)}#toast.show,.action-feedback{transform:translate(-50%,-50%)}
+.action-feedback{z-index:5;pointer-events:none}
+#toast[data-feedback=success]::before,.action-feedback[data-feedback=success]::before{display:block;font-size:25px;margin:0 0 4px;animation:confirm-pop .3s ease-out}
+@keyframes confirm-pop{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}

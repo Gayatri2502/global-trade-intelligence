@@ -64,7 +64,8 @@ class handler(Handler):
 <body class="login-page"><main class="login-layout">
 <section class="trade-illustration" aria-label="Illustration of international shipping routes">
 <p class="eyebrow">GLOBAL TRADE WORKSPACE</p><h1>Trade across borders</h1>
-<p>Manage buyers, suppliers, and deals in one place.</p>
+<p>Trade Ledger is the Global Trade Works workspace for importers and exporters. Find trading partners, assess leads, and follow a deal from the first call through shipment and payment.</p>
+<div class="login-entry"><a class="login-button" href="/auth/login">Sign in with Google</a><p id="login-status" role="status">Access is limited to the approved account.</p></div>
 <svg viewBox="0 0 580 330" role="img" aria-label="Illustrative routes linking the Americas, Europe, Africa, and Asia">
 <defs><pattern id="trade-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#29455b" stroke-width=".55"/></pattern></defs>
 <rect width="580" height="330" rx="16" fill="url(#trade-grid)"/>
@@ -84,11 +85,13 @@ class handler(Handler):
 </g>
 <g fill="#93f6e7" stroke="#173147" stroke-width="3"><circle cx="106" cy="110" r="6"/><circle cx="286" cy="97" r="6"/><circle cx="426" cy="137" r="6"/><circle cx="489" cy="248" r="6"/><circle cx="178" cy="223" r="6"/><circle cx="312" cy="192" r="6"/></g>
 <g fill="#a6bdce" font-size="11" font-family="system-ui"><text x="66" y="129">N. AMERICA</text><text x="253" y="119">EUROPE</text><text x="436" y="140">ASIA</text><text x="458" y="292">OCEANIA</text><text x="121" y="209">S. AMERICA</text><text x="279" y="179">AFRICA</text></g>
-</svg><small>Illustrative routes</small></section>
-<section class="login-card"><p class="eyebrow">TRADE LEDGER</p><h2>Sign in</h2>
-<p>Use the approved Google account to access your workspace.</p>
-<a class="login-button" href="/auth/login">Sign in with Google</a>
-<p id="login-status" role="status"></p></section></main><script type="module" src="/login.mjs"></script></body></html>"""
+</svg><small>Illustrative connections between sourcing and destination markets.</small></section>
+<section class="workspace-preview" aria-label="What is inside Trade Ledger">
+<p class="eyebrow">INSIDE THE WORKSPACE</p><h2>From a new lead to a settled deal</h2>
+<div class="preview-steps"><article><span>01</span><h3>Find trading partners</h3><p>Browse importer and exporter directories, compare markets, and review source evidence.</p></article>
+<article><span>02</span><h3>Build your pipeline</h3><p>Score contacts, log calls, schedule follow-ups, and track quotes and deals.</p></article>
+<article><span>03</span><h3>Follow execution and cash</h3><p>Track shipment milestones, compliance checks, receipts, and commission.</p></article></div>
+</section></main><script type="module" src="/login.mjs"></script></body></html>"""
             else:
                 body = (Path(__file__).resolve().parents[1] / 'index.html').read_bytes()
             self.send_response(200)
@@ -127,7 +130,7 @@ class handler(Handler):
                 expiry = str(int(time.time()) + 3600)
                 session = expiry + '.' + self.signature(OWNER + ':' + expiry)
                 self.send_response(303)
-                self.send_header('Location', '/')
+                self.send_header('Location', '/?signed-in=1')
                 self.send_header('Referrer-Policy', 'no-referrer')
                 self.send_header('Set-Cookie', expired)
                 self.send_header('Set-Cookie', self.set_cookie('trade-session', session, 3600))
