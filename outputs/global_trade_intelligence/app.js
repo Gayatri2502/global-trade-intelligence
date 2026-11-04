@@ -1,3 +1,4 @@
+let ledgerRows=[];
 import {isNum,sum,ratio,active,inYear,filterModel,summary,performance,risk} from './metrics.mjs';
 const $=s=>document.querySelector(s),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(x,dec=0)=>isNum(x)?x.toLocaleString('en-IN',{maximumFractionDigits:dec,minimumFractionDigits:dec}):'N/A';
@@ -43,7 +44,34 @@ function intelligencePanel(data){
 const contactCols=[{key:'id',label:'Company ID',render:c=>`<span class="link">${esc(c.id)}</span>`},{key:'name',label:'Company',render:c=>`<span class="primary">${esc(c.name)}</span>`},{key:'role',label:'Role'},{key:'product',label:'Product'},{key:'country',label:'Country'},{key:'priority',label:'Priority',render:c=>badge(c.priority,c.priority==='High'?'good':'neutral')},{key:'score',label:'Score',num:true,render:c=>isNum(c.score)?fmt(c.score)+'/100':'N/A'},{key:'stage',label:'Stage',render:c=>stageBadge(c.stage)},{key:'verified',label:'Verification',render:c=>badge(c.verified?'Verified':'Unverified',c.verified?'good':'warn')},{key:'nextFollowup',label:'Next follow-up',render:c=>date(c.nextFollowup)}];
 const opportunityCols=[{key:'priority',label:'Priority',render:d=>badge(contactById(d.buyerId)?.priority||'Unassessed')},{key:'id',label:'Opportunity ID',render:d=>`<span class="link">${esc(d.id)}</span>`},{key:'buyerId',label:'Buyer',render:d=>`<span class="primary">${esc(buyerName(d))}</span>`},{key:'supplierId',label:'Supplier',render:d=>esc(supplierName(d))},{key:'product',label:'Product'},{key:'origin',label:'Origin'},{key:'destination',label:'Destination'},{key:'quantity',label:'Quantity',num:true,render:d=>isNum(d.quantity)?fmt(d.quantity)+' '+esc(d.unit||''):'N/A'},{key:'expectedValue',label:'Deal value ₹',num:true,render:d=>fmt(d.expectedValue)},{key:'commissionExpected',label:'Expected commission ₹',num:true,render:d=>fmt(d.commissionExpected)},{key:'probability',label:'Probability',num:true,render:d=>pct(d.probability)},{key:'stage',label:'Stage',render:d=>stageBadge(d.stage)},{key:'nextFollowup',label:'Next follow-up',render:d=>date(d.nextFollowup)},{key:'risk',label:'Risk status',render:d=>{const x=risk(d);return badge(x.label,x.tone);}}];
 function table(rows,cols,kind,empty='No records match the current selection',limit=null){
- let ordered=[...rows];if(sort.key&&cols.some(c=>c.key===sort.key))ordered.sort((a,b)=>{const sortValue=r=>sort.key==='priority'?({High:0,Medium:1,Low:2,Unassessed:3,Exclude:4}[(kind==='deal'?contactById(r.buyerId)?.priority:r.priority)||'Unassessed']??3):kind==='deal'&&sort.key==='buyerId'?buyerName(r):kind==='deal'&&sort.key==='supplierId'?supplierName(r):kind==='deal'&&sort.key==='risk'?risk(r).label:kind==='deal'&&sort.key==='margin'?ratio(r.contribution,r.revenue):r[sort.key];const av=sortValue(a),bv=sortValue(b);if(av==null)return 1;if(bv==null)return-1;return(isNum(av)&&isNum(bv)?av-bv:String(av).localeCompare(String(bv)))*sort.dir;});
+ const ordered=[...rows];
+ if(sort.key&&cols.some(c=>c.key===sort.key)){
+  const sortValue=r=>sort.key==='priority'?({High:0,Medium:1,Low:2,Unassessed:3,Exclude:4}[(kind==='deal'?contactById(r.buyerId)?.priority:r.priority)||'Unassessed']??3):kind==='deal'&&sort.key==='buyerId'?buyerName(r):kind==='deal'&&sort.key==='supplierId'?supplierName(r):kind==='deal'&&sort.key==='risk'?risk(r).label:kind==='deal'&&sort.key==='margin'?ratio(r.contribution,r.revenue):r[sort.key];
+  const compare=(a,b)=>{
+   if(a.value==null||b.value==null){
+    return Number(a.value==null)-Number(b.value==null)||a.index-b.index;
+   }
+   const difference=isNum(a.value)&&isNum(b.value)
+    ? a.value-b.value
+    : String(a.value).localeCompare(String(b.value),undefined,{numeric:true});
+   return difference*sort.dir||a.index-b.index;
+  };
+  const entries=ordered.map((row,index)=>({row,index,value:sortValue(row)}));
+  if(entries.length<=32){
+   for(let i=1;i<entries.length;i++){
+    const entry=entries[i];
+    let j=i;
+    while(j>0&&compare(entries[j-1],entry)>0){
+     entries[j]=entries[j-1];
+     j--;
+    }
+    entries[j]=entry;
+   }
+  }else{
+   entries.sort(compare);
+  }
+  entries.forEach(({row},index)=>{ordered[index]=row;});
+ }
  currentTable={rows:ordered,cols};const visible=limit?ordered.slice(0,limit):ordered;
  return`<table class="data-table"><thead><tr>${cols.map(c=>`<th class="${c.num?'num':''}" data-sort="${c.key}" title="Sort by ${esc(c.label)}">${esc(c.label)}${sort.key===c.key?`<span class="sort-arrow">${sort.dir===1?'↑':'↓'}</span>`:''}</th>`).join('')}</tr></thead><tbody>${visible.length?visible.map(r=>`<tr class="${kind?'clickable':''}" ${kind?`data-kind="${kind}" data-id="${esc(r.id||r.country||r.product)}"`:''}>${cols.map(c=>`<td class="${c.num?'num':''}" title="${esc(c.render?'':r[c.key]??'N/A')}">${c.render?c.render(r):esc(r[c.key]??'N/A')}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty-row" colspan="${cols.length}"><strong>${esc(empty)}</strong>Update the corresponding source table in Excel, save, then Refresh.</td></tr>`}</tbody></table>`;
 }
@@ -75,7 +103,7 @@ function matchingPage(data){const rows=data.deals.filter(d=>d.buyerId&&d.supplie
 function qualityPage(){const total=model.contacts.length,missingDates=model.contacts.filter(c=>!c.lastVerified).length;return`<div class="detail-grid">${smallMetric('FORMULA ERRORS',fmt(model.meta.formulaErrors),'Cached XLSX error cells scanned on refresh')}${smallMetric('INTEGRITY FINDINGS',fmt(model.issues.length),'Duplicates, missing keys, FX and contact channels')}${smallMetric('CONTACTS AWAITING VERIFICATION',fmt(model.contacts.filter(c=>!c.verified).length),`${missingDates} lack a verification date`)}</div>${panel('DATA INTEGRITY FINDINGS',`<div class="table-scroll">${table(model.issues.map((x,i)=>({...x,id:x.id||i})),[{key:'severity',label:'Severity',render:x=>badge(x.severity,x.severity==='error'?'bad':'warn')},{key:'type',label:'Finding'},{key:'id',label:'Record ID'},{key:'sheet',label:'Workbook sheet'},{key:'row',label:'Excel row'}],null,'No structural findings in current records')}</div>`)}${panel('DATA COVERAGE & EXPLICIT GAPS',`<div class="guide-body"><p>${total} sourced contacts; ${model.deals.length} deals; ${model.calls.length} calls; ${model.cash.length} cash events; ${model.market.length} market observations. No recorded transactions means financial trends are unavailable, not assumed performance.</p><p>New blank model fields: supplier Contact ID, quantity/unit, business model, contract commission, commission FX/earned/due dates, noncash commission credit adjustments, completion date and deal follow-up date. CRM qualification date and call decision-maker/qualification outcome are also explicit.</p><p>Historical stage transitions, verified company coordinates, formal order lines, price-competitiveness evidence, delivery-performance cohorts, operating-cost allocations, product HS codes and independent registry verification are not present. Those measures remain unavailable until supported by evidence.</p><p>Potential duplicate company names are flagged for review. Records are preserved because one company may legitimately appear in multiple product or business roles.</p></div>`,'','section-spacer')}`;}
 function settingsPage(){const s=model.settings;return panel('WORKBOOK SCORING & CONTROL SETTINGS',`<div class="guide-body"><h2>Authoritative settings are in Excel</h2><p>Edit <code>Settings</code> in the operational workbook, save, then Refresh here. This read-only dashboard does not create a second editable configuration database.</p><div class="facts">${fact('High-priority threshold',fmt(s.B10))}${fact('Medium-priority threshold',fmt(s.B11))}${fact('Reporting year',esc(s.B12))}${fact('Base reporting currency',esc(s.B13||'INR'))}${fact('Target contribution margin',pct(s.E10))}${fact('Contact review interval',fmt(s.E11)+' days')}${fact('Market research review interval',fmt(s.E12)+' days')}</div><h2>Display currency</h2><p>INR is the supported reporting base. Original invoice and cash currencies and transaction FX remain visible on detail records. A live multi-currency display requires a dated FX-rate series; no unverified conversion rates are inserted.</p></div>`);}
 function guidePage(){return panel('OPERATING GUIDE & METRIC DEFINITIONS',`<div class="guide-body"><h2>Daily workflow</h2><p>Edit the original workbook at <code>${esc(model.meta.workbook)}</code>. The Source button shows this location; the XLSX download is a separate snapshot. Update the existing CRM, Call log, Deals, Milestones and Cash ledger tables using stable IDs. Save the workbook and press <strong>Refresh</strong> in this terminal. Refresh rereads the file on this computer; it does not scrape websites or synchronize email.</p><h2>Connected records</h2><p>Calls link to Contact ID. Deals link to a buyer Contact ID and optional Supplier Contact ID. Milestones and Cash ledger rows link to Deal ID. Aggregations use each unique deal once; repeated calls and contacts do not multiply invoice values. Data Quality flags duplicate IDs and unknown keys.</p><h2>Financial views</h2><p>Invoice revenue is original net invoice amount × transaction FX, only for Invoiced or Closed deals with invoice dates. Direct trade contribution is invoice revenue less every required direct cost line. Missing cost inputs make contribution unavailable. Neither measure is operating profit.</p><p>Cash inflows/outflows use actual ledger dates and realized FX. Commission earned requires an explicit earned date and contract amount/FX. Commission received uses <code>Commission receipt</code>. Outstanding commission is earned commission minus valid credits and receipts. Commission receipts do not reduce physical-goods trade receivables.</p><h2>Filters and history</h2><p>Product and country filters affect the relevant records and visuals. Origin country applies to suppliers, destination country to buyers. Stage filters select deal stages and their linked companies. Date filters apply to dated activity and financial flows; current networks and open pipeline are snapshots. Network discovery timestamps do not imply historical network growth.</p><p>The performance selector keeps comparable units together: financial amounts with financial amounts, calls with connected calls, or single-series dated qualification/completion counts. Current active pipeline by expected close is labeled projected. No historical stage transitions are inferred.</p><h2>Geographic intelligence</h2><p>Markers represent published company countries using Natural Earth country label positions. They are not verified company, farm, factory or port coordinates. Corridors appear only when an existing deal has both origin and destination countries. Country trade statistics remain unavailable until sourced observations exist.</p><h2>Privacy and maintenance</h2><p>This application is served on <code>127.0.0.1</code>; workbook data is read locally. Contact details appear only in company drawers. The XLSX export includes your operational records, so keep it in a trusted location. Relaunch with <code>Launch Dashboard.command</code>.</p><p>Map boundaries: <a class="cyan" href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noreferrer">Natural Earth public-domain data</a>. Boundaries are illustrative and do not imply a political position.</p></div>`);}
-function render(){if(!model)return;currentData=filterModel(model,state);const info=pages[state.page];$('#page-title').textContent=info.title;$('#heading').textContent=info.title;$('#eyebrow').textContent='GLOBAL TRADE INTELLIGENCE / '+info.group.toUpperCase();$('#period-label').textContent=state.year==='All recorded'?'All recorded periods':`01 JAN – 31 DEC ${state.year}`;$('#saved-label').textContent='Workbook saved '+new Date(model.meta.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+(state.country?' · COUNTRY: '+state.country:'');
+function render(){if(!model)return;currentData=filterModel(model,state);const info=pages[state.page];$('#page-title').textContent=info.title;$('#heading').textContent=info.title;$('#eyebrow').textContent='TRADE LEDGER / '+info.group.toUpperCase();$('#period-label').textContent=state.year==='All recorded'?'All recorded periods':`01 JAN – 31 DEC ${state.year}`;$('#saved-label').textContent='Workbook saved '+new Date(model.meta.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+(state.country?' · COUNTRY: '+state.country:'');
  let html='';switch(state.page){case'discovery':html=discoveryPage();break;case'overview':html=overview(currentData);break;case'buyers':case'exporters':case'suppliers':case'priority':html=networkPage(currentData,state.page);break;case'deals':case'opportunities':case'quotes':html=dealsPage(currentData,state.page);break;case'calls':html=callingPage(currentData);break;case'followups':html=followupPage(currentData);break;case'products':html=productsPage(currentData);break;case'market':html=marketPage(currentData);break;case'countries':html=countriesPage(currentData);break;case'milestones':case'shipments':case'compliance':html=milestonesPage(currentData,state.page);break;case'cash':html=cashPage(currentData);break;case'finance':case'commission':case'profit':html=financePage(currentData,state.page);break;case'matching':html=matchingPage(currentData);break;case'quality':html=qualityPage();break;case'settings':html=settingsPage();break;case'guide':html=guidePage();break;case'map':html=mapPage(currentData);break;}
  $('#filters').hidden=state.page==='discovery';$('#content').innerHTML=(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();$('#foot-count').textContent=` · ${model.contacts.length} contacts / ${model.deals.length} deals / ${model.cash.length} cash events`;$('#foot-refresh').textContent='LAST READ '+new Date(model.meta.refreshedAt).toLocaleTimeString('en-GB')+' · '+model.meta.formulaErrors+' FORMULA ERRORS';if(state.page==='map')bindMap();}
 function safeLink(url,label){if(!url||!/^https?:\/\//i.test(url))return'N/A';return`<a href="${esc(url)}" target="_blank" rel="noreferrer" class="cyan">${esc(label||url)}</a>`;}
@@ -100,7 +128,7 @@ function mapPage(data){const countries=[...new Set(data.contacts.map(c=>c.countr
  return`<div class="notice">Published company-country locations only. Markers are country label positions, not verified factory, farm, office or port coordinates. Corridors require recorded deal endpoints.</div><div class="map-layout">${panel('GLOBAL TRADE NETWORK',`<div class="map-layers"><label><input id="layer-buyers" type="checkbox" ${state.showBuyers?'checked':''}> Buyer layer</label><label><input id="layer-suppliers" type="checkbox" ${state.showSuppliers?'checked':''}> Supplier layer</label><label><input id="map-verified" type="checkbox" ${state.verified?'checked':''}> Verified only</label></div><div class="map-wrap">${geo?`<svg id="world-map" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}" aria-label="Country-level buyer and supplier map"><g>${svg}</g></svg>`:'<div class="empty-block"><b>Country boundary file unavailable</b>The country summary and directory remain available.</div>'}<div class="map-tools"><button id="map-zoom-in" aria-label="Zoom map in">+</button><button id="map-zoom-out" aria-label="Zoom map out">−</button><button id="map-reset">Reset map</button></div><div class="map-legend"><span class="buyer">Buyers</span><span class="seller">Suppliers</span><span class="amber">— Recorded deal corridor</span></div></div><div class="map-coverage">${countries.length} countries · ${countries.filter(c=>position(c)).length} mapped countries · ${data.deals.filter(d=>d.origin&&d.destination).length} known deal endpoints · Natural Earth public-domain boundaries</div>`)}${panel('COUNTRY INTELLIGENCE',`<div class="map-summary"><h2>${esc(state.country||'Global network')}</h2><p>${state.country?'Selected country · click a company for details':'Select a marker or country to inspect its network'}</p><div class="country-stats"><div class="country-stat">POTENTIAL BUYERS<b>${mapContacts.filter(c=>c.role==='Buyer').length}</b></div><div class="country-stat">SUPPLIERS<b>${mapContacts.filter(c=>c.role!=='Buyer').length}</b></div><div class="country-stat">ACTIVE OPPORTUNITIES<b>${mapDeals.filter(active).length}</b></div><div class="country-stat">PIPELINE INR<b>${compact(sum(mapDeals,'pipeline'))}</b></div></div><div class="map-companies">${mapContacts.map(c=>`<div class="company-mini" data-kind="contact" data-id="${esc(c.id)}"><b>${esc(c.name)}</b><span>${esc(c.role)} · ${esc(c.product)} · ${esc(c.country)}</span></div>`).join('')||'<div class="empty-block">No company records for this country in the filtered source.</div>'}</div></div>`)} </div>`;
 }
 function bindMap(){const svg=$('#world-map');if(!svg)return;const zoom=f=>{const cx=mapView.x+mapView.w/2,cy=mapView.y+mapView.h/2;mapView.w=Math.min(440,Math.max(45,mapView.w*f));mapView.h=mapView.w/2;mapView.x=cx-mapView.w/2;mapView.y=cy-mapView.h/2;svg.setAttribute('viewBox',`${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}`);};$('#map-zoom-in').onclick=()=>zoom(.75);$('#map-zoom-out').onclick=()=>zoom(1.33);$('#map-reset').onclick=()=>{mapView={x:-180,y:-90,w:360,h:180};state.country=null;render();};svg.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?.9:1.1);},{passive:false});let drag=null,moved=false;svg.onpointerdown=e=>{if(e.button!==0)return;drag={x:e.clientX,y:e.clientY,view:{...mapView}};moved=false;};svg.onpointermove=e=>{if(!drag)return;const dx=(e.clientX-drag.x)/svg.clientWidth*mapView.w,dy=(e.clientY-drag.y)/svg.clientHeight*mapView.h;if(Math.abs(dx)+Math.abs(dy)>1)moved=true;mapView.x=drag.view.x-dx;mapView.y=drag.view.y-dy;svg.setAttribute('viewBox',`${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}`);};svg.onpointerup=e=>{drag=null;if(moved){e.stopPropagation();setTimeout(()=>moved=false,0);}};svg.onclick=e=>{if(moved)return;const country=e.target.closest('[data-map-country]')?.dataset.mapCountry;if(!country)return;state.country=model.contacts.map(c=>c.country).find(c=>(countryAliases[c]||c)===country)||country;render();};}
-async function refresh(first=false){$('#refresh').disabled=true;$('#refresh-state').textContent='● READING WORKBOOK';if(first)$('#content').innerHTML='<div class="loading">Connecting to the operational workbook…</div>';try{const res=await fetch('/api/data',{cache:'no-store'});if(!res.ok)throw new Error((await res.json()).error||'Workbook read failed');model=await res.json();const filled=model.contacts.reduce((n,c)=>n+[c.id,c.name,c.product,c.country,c.source,c.phone||c.email].filter(Boolean).length,0);const completeness=model.contacts.length?filled/(model.contacts.length*6):null;$('#data-completeness').textContent='LEAD FIELDS '+pct(completeness);if(first)state.year=String(model.settings.B12||2026);$('#refresh-state').textContent='● SOURCE CONNECTED';renderFilters();render();if(!first)toast('Saved workbook reloaded. Views recalculated.');}catch(e){$('#refresh-state').textContent='● SOURCE UNAVAILABLE';$('#content').innerHTML=`<div class="error-screen"><h2>Workbook connection unavailable</h2><p>${esc(e.message)}</p><p>Close any incomplete save operation in Excel, then click Refresh.</p></div>`;}finally{$('#refresh').disabled=false;}}
+async function refresh(first=false){$('#refresh').disabled=true;$('#refresh-state').textContent='● READING DATA';if(first)$('#content').innerHTML='<div class="loading">Loading records…</div>';try{const res=await fetch(location.hostname==='127.0.0.1'?'/api/ledger':'/api/data',{cache:'no-store'});if(!res.ok)throw new Error((await res.json()).error||'Workbook read failed');const payload=await res.json();model=payload.model||payload; if(payload.records){ ledgerRows=payload.records; for(const collection of ['contacts','calls','deals','milestones','cash'])model[collection]=ledgerRows.filter(row=>row.collection===collection&&!row.archived).map(row=>row.data); for(const collection of ['contacts','calls','deals','milestones','cash'])model.meta.coverage[collection]=model[collection].length; }document.dispatchEvent(new Event('trade-model-loaded'));const filled=model.contacts.reduce((n,c)=>n+[c.id,c.name,c.product,c.country,c.source,c.phone||c.email].filter(Boolean).length,0);const completeness=model.contacts.length?filled/(model.contacts.length*6):null;$('#data-completeness').textContent='LEAD FIELDS '+pct(completeness);if(first)state.year=String(model.settings.B12||2026);$('#refresh-state').textContent='● SOURCE CONNECTED';renderFilters();render();if(!first)toast('Latest records loaded.');}catch(e){$('#refresh-state').textContent='● SOURCE UNAVAILABLE';$('#content').innerHTML=`<div class="error-screen"><h2>Workbook connection unavailable</h2><p>${esc(e.message)}</p><p>Check the workbook sync, then click Refresh.</p></div>`;}finally{$('#refresh').disabled=false;}}
 function exportCSV(){if(!currentTable)return;const{rows,cols}=currentTable;const safe=x=>{let s=String(x??'');if(/^[=+@-]/.test(s))s="'"+s;return'"'+s.replaceAll('"','""')+'"';};const csv=[cols.map(c=>safe(c.label)).join(','),...rows.map(r=>cols.map(c=>safe(r[c.key])).join(','))].join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=`trade-${state.page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 document.addEventListener('click',e=>{if(e.target.closest('#source-info')){$('#drawer').innerHTML=`<button class="drawer-close" aria-label="Close details">×</button><div class="drawer-eyebrow">OPERATIONAL SOURCE</div><h2 class="drawer-title">Connected Excel workbook</h2><p class="drawer-note">Edit and save this original file, then Refresh. The XLSX download creates a separate copy and does not change the connected file.</p><div class="drawer-section"><div class="fact"><span>Original source path</span><b>${esc(model.meta.workbook)}</b></div><button data-copy-source style="margin-top:15px">Copy file path</button></div>`;$('#drawer').hidden=false;$('#drawer-cover').hidden=false;return;}if(e.target.closest('[data-copy-source]')){navigator.clipboard.writeText(model.meta.workbook).then(()=>toast('Original workbook path copied.')).catch(()=>toast('Select and copy the visible path.'));return;}const page=e.target.closest('[data-page]');if(page){state.page=page.dataset.page;state.country=null;sort={key:null,dir:1};location.hash=state.page;render();return;}const record=e.target.closest('[data-kind]');if(record){openDrawer(record.dataset.kind,record.dataset.id);return;}if(e.target.closest('.drawer-close')||e.target===$('#drawer-cover')){closeDrawer();return;}const country=e.target.closest('[data-country-filter]');if(country){state.destination=country.dataset.countryFilter;state.country=null;renderFilters();render();toast('Destination filter: '+state.destination);return;}const product=e.target.closest('[data-product-filter]');if(product){state.product=product.dataset.productFilter;renderFilters();render();return;}const th=e.target.closest('[data-sort]');if(th){sort={key:th.dataset.sort,dir:sort.key===th.dataset.sort?-sort.dir:1};render();return;}if(e.target.closest('[data-export]'))exportCSV();if(e.target.closest('#reset')){Object.assign(state,{year:String(model.settings.B12||2026),metric:'finance',grain:'month',product:'All',origin:'All',destination:'All',role:'All',stage:'All',priority:'All',q:'',country:null,verified:false});$('#search').value='';renderFilters();render();}});
 document.addEventListener('change',e=>{if(e.target.matches('[data-filter]')){state[e.target.dataset.filter]=e.target.value;state.country=null;render();}if(e.target.id==='metric'){state.metric=e.target.value;render();}if(e.target.id==='grain'){state.grain=e.target.value;render();}if(['verified-only','map-verified'].includes(e.target.id)){state.verified=e.target.checked;render();}if(e.target.id==='layer-buyers'){state.showBuyers=e.target.checked;render();}if(e.target.id==='layer-suppliers'){state.showSuppliers=e.target.checked;render();}});
@@ -113,4 +141,123 @@ renderNav();fetch('/api/map').then(r=>r.ok?r.json():null).then(x=>{geo=x;if(mode
 function discoveryPage(){
  const all=model.discovery||[],q=state.q.toLowerCase(),rows=all.filter(r=>!q||[r.name,r.product,r.country,r.role,r.phone,r.email].some(x=>String(x||'').toLowerCase().includes(q)));
  return `<div class="detail-grid">${smallMetric('SOURCED COMPANIES',fmt(all.length),'Distinct discovery IDs; excludes qualification assumptions')}${smallMetric('PUBLISHED PHONE',fmt(all.filter(r=>r.phone&&r.phone!=='NA').length),'Public numbers; not called or reachability verified')}${smallMetric('AWAITING VERIFICATION',fmt(all.filter(r=>r.verification!=='Verified').length),'Licences and trade readiness require review')}</div>`+panel('PUBLIC BUSINESS CONTACT DIRECTORY',`<div class="table-note">Search companies, products, countries, phone or email using the search field above. Click column headings to sort. These are sourced leads; operational network KPIs remain separate. Missing details are NA. Some directory entries are historical; read the evidence before outreach.</div><div class="table-scroll">${table(rows,[{key:'name',label:'Company'},{key:'role',label:'Published role'},{key:'product',label:'Product'},{key:'country',label:'Country'},{key:'phone',label:'Business phone'},{key:'email',label:'Business email'},{key:'verification',label:'Verification',render:r=>badge(r.verification,'warn')},{key:'source',label:'Source',render:r=>safeLink(r.source,'Evidence ↗')},{key:'evidence',label:'Evidence / limitations'},{key:'notes',label:'Review notes'}],null)}</div>`,`<button data-export>Export visible CSV ↗</button>`);
+}
+
+if (location.hostname === '127.0.0.1') {
+ setInterval(() => { if (!$('#refresh').disabled) refresh(); }, 60000);
+}
+
+if (location.hostname === '127.0.0.1') {
+ const manage = document.createElement('button');
+ manage.textContent = 'Manage records';
+ $('#refresh').after(manage);
+ manage.onclick = () => {
+  const dialog = document.createElement('dialog');
+  dialog.style.cssText = 'background:#101d30;color:#eaf2fc;border:1px solid #3d83ff;padding:1.25rem;width:min(580px,90vw)';
+  dialog.innerHTML = '<h2>Manage database records</h2><label>Collection <select><option>contacts</option><option>calls</option><option>deals</option><option>milestones</option><option>cash</option></select></label> <label>Record <select></select></label><p>Record fields</p><textarea aria-label="Record fields" rows="12" style="width:100%"></textarea><p role="status"></p><button>Save record</button> <button>Archive</button> <button>Close</button>';
+  const [collection, picker] = dialog.querySelectorAll('select');
+  const fields = dialog.querySelector('textarea');
+  const status = dialog.querySelector('[role=status]');
+  const [save, archive, close] = dialog.querySelectorAll('button');
+  const selected = () => ledgerRows.find(row => row.collection === collection.value && row.record_id === picker.value);
+  const defaults = {
+   contacts:{name:'',role:'Buyer',product:'',country:'',stage:'New'},
+   calls:{contactId:'',date:'',channel:'Phone',outcome:'',triggered:true,notes:'',followup:''},
+   deals:{buyerId:'',supplierId:'',product:'',stage:'Lead',expectedValue:null,probability:null},
+   milestones:{dealId:'',name:'',due:'',progress:'Pending'},
+   cash:{dealId:'',date:'',direction:'Inflow',amount:null}
+  };
+  function loadRecord() {
+   const row = selected();
+   fields.value = JSON.stringify(row?.data || defaults[collection.value], null, 2);
+   archive.disabled = !row;
+   archive.textContent = row?.archived ? 'Restore' : 'Archive';
+  }
+  function listRecords(id='') {
+   picker.replaceChildren(new Option('New record',''));
+   for (const row of ledgerRows.filter(row=>row.collection===collection.value)) {
+    picker.add(new Option((row.data.name || row.record_id)+(row.archived?' (archived)':''),row.record_id));
+   }
+   picker.value=id;
+   loadRecord();
+  }
+  async function submit(toggleArchive) {
+   const row=selected();
+   save.disabled=archive.disabled=collection.disabled=picker.disabled=true;
+   try {
+    const record=toggleArchive ? row.data : JSON.parse(fields.value);
+    if (!record || typeof record!=='object'||Array.isArray(record)) throw Error('Enter a record object.');
+    record.id=row?.record_id || 'TL-'+crypto.randomUUID();
+    if (collection.value==='contacts' && !String(record.name||'').trim()) throw Error('Enter a company name.');
+    const response=await fetch('/api/ledger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({collection:collection.value,record,revision:row?.revision||0,archived:toggleArchive?!row.archived:row?.archived||false})});
+    const result=await response.json();
+    if(!response.ok) throw Error(result.error);
+    await refresh();
+    listRecords(record.id);
+    status.textContent='Saved to Supabase. Revision '+result.revision+'.';
+   } catch(error) {status.textContent=error.message;}
+   finally {save.disabled=collection.disabled=picker.disabled=false;archive.disabled=!selected();}
+  }
+  collection.onchange=()=>listRecords();
+  picker.onchange=loadRecord;
+  save.onclick=()=>submit(false);
+  archive.onclick=()=>submit(true);
+  close.onclick=()=>dialog.close();
+  dialog.onclose=()=>dialog.remove();
+  document.body.append(dialog);
+  listRecords();
+  dialog.showModal();
+ };
+}
+
+if (location.hostname === '127.0.0.1') {
+ const bulkButton=document.createElement('button');
+ bulkButton.textContent='Bulk import';
+ $('#refresh').after(bulkButton);
+ bulkButton.onclick=()=>{
+  const dialog=document.createElement('dialog');
+  dialog.style.cssText='background:#101d30;color:#eaf2fc;padding:1.25rem;width:min(640px,90vw)';
+  dialog.innerHTML='<h2>Bulk import companies</h2><p>Choose CSV or XLSX with a Company column. Optional columns include Role, Country, Product, Email, Phone and Website. Excel imports use the selected worksheet saved in the file.</p><input type="file" accept=".csv,.xlsx"><p role="status"></p><pre style="white-space:pre-wrap;max-height:35vh;overflow:auto"></pre><button>Preview</button> <button disabled>Import companies</button> <button>Close</button>';
+  const file=dialog.querySelector('input');
+  const status=dialog.querySelector('[role=status]');
+  const preview=dialog.querySelector('pre');
+  const [inspect,commit,close]=dialog.querySelectorAll('button');
+  let approved=null;
+  file.onchange=()=>{approved=null;commit.disabled=true;preview.textContent='';status.textContent='';};
+  async function send(confirmImport) {
+   const selected=file.files[0];
+   if(!selected || selected.size>1450000){status.textContent='Choose a file under 1.45 MB.';return;}
+   inspect.disabled=commit.disabled=file.disabled=true;
+   try {
+    const bytes=new Uint8Array(await selected.arrayBuffer());
+    const content=btoa(Array.from(bytes,byte=>String.fromCharCode(byte)).join(''));
+    if(confirmImport && content!==approved)throw Error('Preview the changed file first.');
+    const response=await fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:selected.name,content,commit:confirmImport})});
+    const result=await response.json();
+    if(!response.ok)throw Error(result.error);
+    if(confirmImport){
+     approved=null;
+     status.textContent=`Imported ${result.imported}. Skipped ${result.skipped} existing companies.`;
+     await refresh();
+    }else{
+     const keys=new Set(ledgerRows.filter(row=>row.collection==='contacts').map(row=>[row.data.name,row.data.country].map(value=>String(value||'').trim().toLowerCase()).join('|')));
+     preview.textContent=result.records.map(record=>{
+      const key=[record.name,record.country].map(value=>value.trim().toLowerCase()).join('|');
+      const label=keys.has(key)?'Existing or duplicate':'New';
+      keys.add(key);
+      return `${label} · ${record.name} · ${record.country} · ${record.role}`;
+     }).concat(result.errors).join('\n');
+     status.textContent=`${result.records.length} valid rows. ${result.errors.length} invalid rows.`;
+     approved=result.records.length&&!result.errors.length?content:null;
+    }
+   }catch(error){status.textContent=error.message;}
+   finally{inspect.disabled=file.disabled=false;commit.disabled=!approved;}
+  }
+  inspect.onclick=()=>{approved=null;send(false);};
+  commit.onclick=()=>send(true);
+  close.onclick=()=>dialog.close();
+  dialog.onclose=()=>dialog.remove();
+  document.body.append(dialog);
+  dialog.showModal();
+ };
 }

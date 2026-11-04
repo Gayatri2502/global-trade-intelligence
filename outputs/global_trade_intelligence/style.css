@@ -6,3 +6,19 @@
 
 @media(max-width:650px){.search input{display:block;width:0;opacity:0}.search:focus-within input{width:100%;opacity:1}}
 @media(min-width:951px) and (max-width:1700px){header{height:48px}.filterbar{padding-top:9px;padding-bottom:9px}.page-heading{padding-top:13px;padding-bottom:10px}h1{font-size:19px}.kpi{min-height:98px;padding-top:10px;padding-bottom:8px}.kpi-value{font-size:25px;margin-top:6px}.kpi-grid{margin-bottom:10px}.chart-wrap{height:184px}.panel-header{min-height:38px;padding-top:9px;padding-bottom:9px}.quality-grid{grid-template-columns:repeat(3,1fr);gap:5px;margin-top:7px;padding-top:7px}.quality-cell{font-size:7px}.quality-cell b{font-size:12px}.region-row{padding-top:3px;padding-bottom:3px}.mini-heading{margin-top:8px;margin-bottom:6px}.intelligence-body{padding-bottom:8px}.chart-foot{padding-top:7px;padding-bottom:7px}}
+
+#refresh.sync-running::before {
+  content: "";
+  display: inline-block;
+  width: .8em;
+  height: .8em;
+  margin-right: .45em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: sync-spin .8s linear infinite;
+}
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #refresh.sync-running::before { animation: none; }
+}
