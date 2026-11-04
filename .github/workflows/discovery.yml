@@ -2,7 +2,7 @@ name: Daily trade contact discovery
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 2 * * *'
+    - cron: '7,37 * * *'
 permissions:
   contents: read
 concurrency:
@@ -23,4 +23,9 @@ jobs:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           META_GRAPH_VERSION: ${{ vars.META_GRAPH_VERSION }}
           META_IG_BUSINESS_ID: ${{ vars.META_IG_BUSINESS_ID }}
-        run: python crawler/run.py
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            python crawler/schedule.py --manual
+          else
+            python crawler/schedule.py
+          fi
