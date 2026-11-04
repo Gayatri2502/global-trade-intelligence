@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 URL = 'https://cdnzpncsbxavakbvtgem.supabase.co/rest/v1/rpc/trade_ledger'
 PUBLISHABLE_KEY = 'sb_publishable_j3HSf2k6MVooEUqvfpHYvQ_g5EHYTEv'
 
-def ledger_request(action, **fields):
+def ledger_request(action, *, endpoint=URL, **fields):
     secret = os.getenv('TRADE_SIGNING_SECRET')
     if not secret:
         path = Path(__file__).resolve().parents[2] / 'backend' / '.env'
@@ -24,6 +24,6 @@ def ledger_request(action, **fields):
     timestamp = int(time.time())
     signature = hmac.new(secret.encode(), f'{timestamp}.{body}'.encode(), hashlib.sha256).hexdigest()
     payload = json.dumps(dict(p_body=body, p_timestamp=timestamp, p_signature=signature)).encode()
-    request = Request(URL, data=payload, headers={'apikey': PUBLISHABLE_KEY, 'Content-Type': 'application/json'})
+    request = Request(endpoint, data=payload, headers={'apikey': PUBLISHABLE_KEY, 'Content-Type': 'application/json'})
     with urlopen(request, timeout=15) as response:
         return json.load(response)

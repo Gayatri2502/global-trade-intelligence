@@ -4,6 +4,10 @@ The enabled adapter reads curated company-owned contact pages from `config.json`
 
 Configure local run times, weekdays (Monday = 0), and timezone in `schedule.json`. To schedule a specific reviewed company website separately, add a distinct job key with `adapter: public-company-sites` and a `hosts` list matching entries in `config.json`, and exclude overlapping jobs from the schedule. GitHub Actions checks twice an hour and supports Run workflow for an immediate pass. Runs may start late if GitHub delays a scheduled job. The latest due slot is recovered after a missed check. Supabase persists run completion and counts. The workflow concurrency group prevents overlapping GitHub runs. The database transaction makes retries of a saved run idempotent. Failed slots are retried on subsequent checks until a newer slot becomes due. Page-level resume and exact-minute scheduling are not implemented.
 
+## Dashboard monitoring
+
+Open Discovery Inbox to view the schedule, next slot, latest progress, counters and recent runs. Trigger crawl queues an immediate-priority request in Supabase. The next GitHub runner check at :07 or :37 UTC picks it up, or an operator can dispatch the workflow from GitHub. A queued request does not require the browser to stay open.
+
 ## Requested provider review
 
 | Provider | Evidence or collection limitation | Adapter next step |

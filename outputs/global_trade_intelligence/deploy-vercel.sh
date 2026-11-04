@@ -6,6 +6,7 @@ trap 'rm -rf "$stage"' EXIT
 mkdir "$stage/public" "$stage/api"
 cp "$source_dir"/{style.css,app.js,feedback.mjs,login.mjs,metrics.mjs,world.geojson} "$stage/public/"
 cp "$source_dir"/{index.html,server.py,ledger_client.py,bulk_contacts.py,vercel.json} "$stage/"
+cp "$source_dir/../../crawler/schedule.json" "$stage/crawler_schedule.json"
 cp "$source_dir/api/private.py" "$stage/api/"
 printf 'openpyxl==3.1.5\n' > "$stage/requirements.txt"
 cd "$stage"

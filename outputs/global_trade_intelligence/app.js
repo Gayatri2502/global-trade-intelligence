@@ -124,8 +124,8 @@ function qualityPage(){const total=model.contacts.length,missingDates=model.cont
 function settingsPage(){const s=model.settings;return panel('WORKBOOK SCORING & CONTROL SETTINGS',`<div class="guide-body"><h2>Authoritative settings are in Excel</h2><p>Edit <code>Settings</code> in the operational workbook, save, then Refresh here. This read-only dashboard does not create a second editable configuration database.</p><div class="facts">${fact('High-priority threshold',fmt(s.B10))}${fact('Medium-priority threshold',fmt(s.B11))}${fact('Reporting year',esc(s.B12))}${fact('Base reporting currency',esc(s.B13||'INR'))}${fact('Target contribution margin',pct(s.E10))}${fact('Contact review interval',fmt(s.E11)+' days')}${fact('Market research review interval',fmt(s.E12)+' days')}</div><h2>Display currency</h2><p>INR is the supported reporting base. Original invoice and cash currencies and transaction FX remain visible on detail records. A live multi-currency display requires a dated FX-rate series; no unverified conversion rates are inserted.</p></div>`);}
 function guidePage(){return panel('OPERATING GUIDE & METRIC DEFINITIONS',`<div class="guide-body"><h2>Daily workflow</h2><p>Edit the original workbook at <code>${esc(model.meta.workbook)}</code>. The Source button shows this location; the XLSX download is a separate snapshot. Update the existing CRM, Call log, Deals, Milestones and Cash ledger tables using stable IDs. Save the workbook and press <strong>Refresh</strong> in this terminal. Refresh rereads the file on this computer; it does not scrape websites or synchronize email.</p><h2>Connected records</h2><p>Calls link to Contact ID. Deals link to a buyer Contact ID and optional Supplier Contact ID. Milestones and Cash ledger rows link to Deal ID. Aggregations use each unique deal once; repeated calls and contacts do not multiply invoice values. Data Quality flags duplicate IDs and unknown keys.</p><h2>Financial views</h2><p>Invoice revenue is original net invoice amount × transaction FX, only for Invoiced or Closed deals with invoice dates. Direct trade contribution is invoice revenue less every required direct cost line. Missing cost inputs make contribution unavailable. Neither measure is operating profit.</p><p>Cash inflows/outflows use actual ledger dates and realized FX. Commission earned requires an explicit earned date and contract amount/FX. Commission received uses <code>Commission receipt</code>. Outstanding commission is earned commission minus valid credits and receipts. Commission receipts do not reduce physical-goods trade receivables.</p><h2>Filters and history</h2><p>Product and country filters affect the relevant records and visuals. Origin country applies to suppliers, destination country to buyers. Stage filters select deal stages and their linked companies. Date filters apply to dated activity and financial flows; current networks and open pipeline are snapshots. Network discovery timestamps do not imply historical network growth.</p><p>The performance selector keeps comparable units together: financial amounts with financial amounts, calls with connected calls, or single-series dated qualification/completion counts. Current active pipeline by expected close is labeled projected. No historical stage transitions are inferred.</p><h2>Geographic intelligence</h2><p>Markers represent published company countries using Natural Earth country label positions. They are not verified company, farm, factory or port coordinates. Corridors appear only when an existing deal has both origin and destination countries. Country trade statistics remain unavailable until sourced observations exist.</p><h2>Privacy and maintenance</h2><p>This application is served on <code>127.0.0.1</code>; workbook data is read locally. Contact details appear only in company drawers. The XLSX export includes your operational records, so keep it in a trusted location. Relaunch with <code>Launch Dashboard.command</code>.</p><p>Map boundaries: <a class="cyan" href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noreferrer">Natural Earth public-domain data</a>. Boundaries are illustrative and do not imply a political position.</p></div>`);}
 function render(){if(!model)return;currentData=filterModel(model,state);const info=pages[state.page]||pages.overview;$('#page-title').textContent=info.title;$('#heading').textContent=info.title;$('#eyebrow').textContent='TRADE LEDGER / '+info.group.toUpperCase();$('#period-label').textContent=state.year==='All recorded'?'All recorded periods':`01 JAN – 31 DEC ${state.year}`;$('#saved-label').textContent='Workbook saved '+new Date(model.meta.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+(state.country?' · COUNTRY: '+state.country:'');
- let html='';switch(state.page){case'discovery':html=discoveryPage(currentData);break;case'overview':html=overview(currentData);break;case'buyers':case'exporters':case'suppliers':case'priority':html=networkPage(currentData,state.page);break;case'deals':case'opportunities':case'quotes':html=dealsPage(currentData,state.page);break;case'calls':html=callingPage(currentData);break;case'followups':html=followupPage(currentData);break;case'products':html=productsPage(currentData);break;case'market':html=marketPage(currentData);break;case'countries':html=countriesPage(currentData);break;case'milestones':case'shipments':case'compliance':html=milestonesPage(currentData,state.page);break;case'cash':html=cashPage(currentData);break;case'finance':case'commission':case'profit':html=financePage(currentData,state.page);break;case'matching':html=matchingPage(currentData);break;case'quality':html=qualityPage();break;case'settings':html=settingsPage();break;case'guide':html=guidePage();break;case'map':html=mapPage(currentData);break;}
- $('#content').innerHTML=(operationPages[state.page]?`<div class="record-toolbar"><button class="record-primary" data-operation=""><span aria-hidden="true">＋</span> ${operationPages[state.page][1]}</button></div>`:'')+(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();if(state.page==='map'){bindMap();loadMap();}}
+ let html='';switch(state.page){case'discovery':html=crawlerPanel()+discoveryPage(currentData);break;case'overview':html=overview(currentData);break;case'buyers':case'exporters':case'suppliers':case'priority':html=networkPage(currentData,state.page);break;case'deals':case'opportunities':case'quotes':html=dealsPage(currentData,state.page);break;case'calls':html=callingPage(currentData);break;case'followups':html=followupPage(currentData);break;case'products':html=productsPage(currentData);break;case'market':html=marketPage(currentData);break;case'countries':html=countriesPage(currentData);break;case'milestones':case'shipments':case'compliance':html=milestonesPage(currentData,state.page);break;case'cash':html=cashPage(currentData);break;case'finance':case'commission':case'profit':html=financePage(currentData,state.page);break;case'matching':html=matchingPage(currentData);break;case'quality':html=qualityPage();break;case'settings':html=settingsPage();break;case'guide':html=guidePage();break;case'map':html=mapPage(currentData);break;}
+ $('#content').innerHTML=(operationPages[state.page]?`<div class="record-toolbar"><button class="record-primary" data-operation=""><span aria-hidden="true">＋</span> ${operationPages[state.page][1]}</button></div>`:'')+(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();if(state.page==='map'){bindMap();loadMap();}if(state.page==='discovery')loadCrawler();}
 function safeLink(url,label){if(!url||!/^https?:\/\//i.test(url))return'N/A';return`<a href="${esc(url)}" target="_blank" rel="noreferrer" class="cyan">${esc(label||url)}</a>`;}
 function fact(label,value,full=false){return`<div class="fact ${full?'full':''}"><span>${esc(label)}</span><b>${value==null||value===''?'N/A':value}</b></div>`;}
 function openDrawer(kind,id){let html='';if(kind==='country'){state.country=id;state.page='map';location.hash='map';render();return;}if(kind==='product'){state.product=id;state.page='products';location.hash='products';renderFilters();render();return;}
@@ -483,3 +483,65 @@ document.addEventListener('click',event=>{
   openRecordEditor(collection,row?.data||{id:'TL-'+crypto.randomUUID(),...defaults},row?.revision||0);
  }
 });
+
+function crawlerPanel(){
+ return panel('CRAWLER ACTIVITY',`<div id="crawler-status" class="crawler-status" role="status">Loading crawler schedule…</div>`,
+  '<button type="button" class="record-primary" id="run-crawler" disabled>Trigger crawl</button>','crawler-panel');
+}
+let crawlerRequest;
+let crawlerTrigger=false;
+let lastCompletedCrawl;
+const crawlStages=['queued','connecting','crawling','saving','saved'];
+const crawlLabels={queued:'Queued',connecting:'Connecting',crawling:'Crawling',saving:'Saving',saved:'Complete'};
+function crawlTime(value,zone){
+ return value?new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short',timeZone:zone}).format(new Date(value)):'—';
+}
+async function loadCrawler(){
+ if(crawlerRequest||!$('#crawler-status'))return;
+ crawlerRequest=requestJSON('/api/crawler',{cache:'no-store'});
+ try{
+  const {runs,schedule}=await crawlerRequest;
+  if(lastCompletedCrawl===undefined&&runs[0]?.status!=='saved')lastCompletedCrawl=null;
+  const target=$('#crawler-status');
+  if(!target)return;
+  const latest=runs[0];
+  const interrupted=latest?.status==='running'&&Date.now()-new Date(latest.heartbeat)>12*60*1000;
+  const active=latest?.status==='queued'||(latest?.status==='running'&&!interrupted);
+  const phase=latest?.stage||latest?.status;
+  const index=crawlStages.indexOf(phase);
+  const timeZone=schedule.timezone;
+  const jobRows=schedule.jobs.map(job=>`<li><b>${esc(job.source.replaceAll('-',' '))}</b> · ${esc(job.times.join(', '))} · ${job.days.length===7?'Daily':job.days.map(d=>['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d]).join(', ')}<br>Next slot: ${esc(crawlTime(job.next_run,timeZone))} (${esc(timeZone)})</li>`).join('');
+  const recent=runs.slice(0,5).map(run=>`<li>${esc(crawlTime(run.completed_at||run.started_at||run.requested_at,timeZone))} · ${esc(run.status==='saved'?'Complete':run.status)} · ${run.inserted||0} new · ${run.updated||0} updated</li>`).join('');
+  const hint=interrupted?'Run heartbeat expired. Trigger a new run or wait for the runner to recover.':latest?.status==='queued'?'Waiting for a background runner. It checks at :07 and :37 each hour.':latest?.status==='failed'?'This run did not finish successfully. Trigger a new run or review GitHub Actions.':latest?.status==='saved'?'The database confirmed completion.':'Counts update as the runner reports progress.';
+  const html=`<ul class="crawl-schedule">${jobRows||'<li>No active schedule</li>'}</ul>
+   <ol class="crawl-steps">${crawlStages.map((step,i)=>`<li class="${i<index?'done':i===index?'current':''}" ${i===index?'aria-current="step"':''}>${crawlLabels[step]}</li>`).join('')}</ol>
+   <p>${esc(hint)}</p><div class="crawl-counts">${[['Pages fetched','pages_fetched'],['Leads found','discovered'],['New contacts','inserted'],['Enriched','updated'],['Fetch failures','failed_requests']].map(([label,key])=>`<div><b>${latest?.[key]??0}</b><small>${label}</small></div>`).join('')}</div>
+   <details><summary>Recent runs</summary><ul>${recent||'<li>No runs recorded.</li>'}</ul></details>`;
+  if(target.dataset.snapshot!==html){
+   const expanded=target.querySelector('details')?.open;
+   target.innerHTML=html;target.dataset.snapshot=html;
+   if(expanded)target.querySelector('details').open=true;
+  }
+  $('#run-crawler').disabled=crawlerTrigger||active;
+  if(latest?.status==='saved'&&lastCompletedCrawl!==latest.run_id){
+   const hadPreviousRun=lastCompletedCrawl!==undefined;
+   lastCompletedCrawl=latest.run_id;
+   if(hadPreviousRun)refresh(false,true,true);
+  }
+ }catch(error){
+  const target=$('#crawler-status');
+  if(target){delete target.dataset.snapshot;feedback(target,'failed',error.message,loadCrawler);}
+ }finally{crawlerRequest=null;}
+}
+document.addEventListener('click',async event=>{
+ const button=event.target.closest('#run-crawler');
+ if(!button||crawlerTrigger)return;
+ crawlerTrigger=true;
+ const finish=busy(button,'Queuing…');
+ try{
+  const result=await postLedger('/api/crawler',{});
+  toast(result.existing?'A crawl is already pending or running.':'Crawl queued. The next background check will pick it up.');
+ }catch(error){toast(error.message,'failed');}
+ finally{crawlerTrigger=false;finish();await loadCrawler();}
+});
+setInterval(()=>{if(state.page==='discovery'&&document.visibilityState==='visible')loadCrawler();},8000);

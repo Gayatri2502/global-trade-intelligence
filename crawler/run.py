@@ -123,13 +123,14 @@ def social_api(config,summary):
   except Exception as exc:summary['errors'].append({'provider':'instagram_api','reason':type(exc).__name__})
  summary['social_status']='Authorized API targets processed; consult errors for inaccessible targets'
  return output
-def run(config):
+def run(config, progress=None):
  summary={'pages_fetched':0,'domains':0,'leads':0,'errors':[]};cache={};leads={};seen_domains=set();deadline=time.monotonic()+420
  sources=discover(config,summary)+social_api(config,summary)
  for source in sources:
   url=source['url'];host=(parse.urlparse(url).hostname or '').removeprefix('www.')
   if not host or host in seen_domains or host in SOCIAL:continue
   if len(seen_domains)>=config['max_domains'] or time.monotonic()>deadline:break
+  if progress:progress(summary,len(leads))
   seen_domains.add(host);queue=[url];seen=set()
   while queue and len(seen)<config['pages_per_domain'] and time.monotonic()<deadline:
    current=queue.pop(0)

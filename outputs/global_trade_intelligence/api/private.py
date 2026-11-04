@@ -138,7 +138,7 @@ class handler(Handler):
                 return
             except (OSError, KeyError, ValueError):
                 return self.reply(303, location='/login?status=failed', cookie=expired)
-        if request.path != '/api/ledger':
+        if request.path not in ('/api/ledger', '/api/crawler'):
             return self.reply(404)
         if not self.signed_in():
             return self.reply(401, 'Sign in with the approved Google account.')

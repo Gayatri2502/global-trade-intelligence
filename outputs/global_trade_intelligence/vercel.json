@@ -37,6 +37,10 @@
     {
       "source": "/api/map",
       "destination": "/world.geojson"
+    },
+    {
+      "source": "/api/crawler",
+      "destination": "/api/private"
     }
   ]
 }

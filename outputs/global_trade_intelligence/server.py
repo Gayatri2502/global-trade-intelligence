@@ -3,10 +3,40 @@ from pathlib import Path
 from urllib.parse import urlparse
 import json, os, sys, webbrowser, threading, urllib.request
 import urllib.error
-from ledger_client import ledger_request
+from ledger_client import URL, ledger_request
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from bulk_contacts import parse_contacts
 
 ROOT = Path(__file__).resolve().parent
+
+def crawler_request(action):
+    return ledger_request(action, endpoint=URL.replace('trade_ledger', 'trade_crawler_control'))
+
+
+def crawler_schedule():
+    path = ROOT / 'crawler_schedule.json'
+    if not path.exists():
+        path = ROOT.parents[1] / 'crawler' / 'schedule.json'
+    config = json.loads(path.read_text())
+    now = datetime.now(ZoneInfo(config['timezone']))
+    jobs = []
+    for name, job in config['sources'].items():
+        if not job['enabled']:
+            continue
+        upcoming = []
+        for offset in range(8):
+            day = now.date() + timedelta(days=offset)
+            if day.weekday() not in job['days']:
+                continue
+            for clock in job['times']:
+                slot = datetime.combine(day, datetime.strptime(clock, '%H:%M').time(), now.tzinfo)
+                if slot > now:
+                    upcoming.append(slot)
+        jobs.append(dict(source=name, times=job['times'], days=job['days'],
+                         next_run=min(upcoming).isoformat() if upcoming else None))
+    return dict(timezone=config['timezone'], jobs=jobs)
+
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):super().__init__(*args,directory=str(ROOT),**kwargs)
@@ -19,9 +49,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def write_records(self, origin):
         route = urlparse(self.path).path
-        if route not in ('/api/import', '/api/ledger') or self.headers.get('Origin') != origin:
+        if route not in ('/api/import', '/api/ledger', '/api/crawler') or self.headers.get('Origin') != origin:
             self.send_error(403)
             return
+        if route == '/api/crawler':
+            return self.crawler_response('queue')
         if route == '/api/import':
             try:
                 size = int(self.headers.get('Content-Length', '0'))
@@ -87,8 +119,23 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(result).encode())
             return
+    def crawler_response(self, action):
+        try:
+            result = crawler_request(action)
+            if action == 'view':
+                result['schedule'] = crawler_schedule()
+            status = 200
+        except (OSError, ValueError, RuntimeError):
+            status, result = 502, {'error': 'Crawler status is temporarily unavailable.'}
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(result).encode())
+
     def do_GET(self):
         route=urlparse(self.path).path
+        if route == '/api/crawler':
+            return self.crawler_response('view')
         if route == '/api/ledger':
             try:
                 body, status = json.dumps(ledger_request('read')), 200
