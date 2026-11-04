@@ -15,7 +15,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('X-Content-Type-Options','nosniff')
         super().end_headers()
     def do_POST(self):
-        origin = f'http://127.0.0.1:{self.server.server_port}'
+        return self.write_records(f'http://127.0.0.1:{self.server.server_port}')
+
+    def write_records(self, origin):
         if self.path not in ('/api/import', '/api/ledger') or self.headers.get('Origin') != origin:
             self.send_error(403)
             return

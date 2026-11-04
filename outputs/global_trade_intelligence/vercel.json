@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "outputDirectory": "public",
+  "rewrites": [
+    {"source": "/api/ledger", "destination": "/api/private"},
+    {"source": "/api/import", "destination": "/api/private"},
+    {"source": "/auth/:path", "destination": "/api/private"},
+    {"source": "/api/map", "destination": "/world.geojson"}
+  ]
+}

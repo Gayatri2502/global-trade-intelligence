@@ -6,7 +6,13 @@ The local dashboard at http://127.0.0.1:8765 uses Supabase for operational recor
 - **Manage records** edits or archives contacts, calls, deals, milestones and cash entries using revision checks.
 - **Bulk import** previews CSV or XLSX company rows and inserts new contacts after confirmation.
 
-The [Vercel production dashboard](https://trade-ledger-seven.vercel.app/) serves a public synthetic demo. Live access and edits require a protected server connection. Legacy workbook and Sheets utilities remain in the repository for existing workflows and historical recovery.
+## Vercel production
+
+The [production dashboard](https://trade-ledger-seven.vercel.app/) requires Google sign-in for database access. The server accepts only the verified email `alphacentauric.ai@gmail.com`.
+
+Create a Google OAuth Web application client with the exact callback `https://trade-ledger-seven.vercel.app/auth/callback`. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TRADE_SESSION_SECRET` (a random server-only value) and `TRADE_SIGNING_SECRET` (the existing Supabase RPC signing key) as Vercel Production environment variables. Redeploy with `./deploy-vercel.sh`. The script stages only the application files and excludes local records and secrets.
+
+Legacy workbook and Sheets utilities remain in the repository for existing workflows and historical recovery.
 
 ## Model additions
 
