@@ -108,7 +108,7 @@ function settingsPage(){const s=model.settings;return panel('WORKBOOK SCORING & 
 function guidePage(){return panel('OPERATING GUIDE & METRIC DEFINITIONS',`<div class="guide-body"><h2>Daily workflow</h2><p>Edit the original workbook at <code>${esc(model.meta.workbook)}</code>. The Source button shows this location; the XLSX download is a separate snapshot. Update the existing CRM, Call log, Deals, Milestones and Cash ledger tables using stable IDs. Save the workbook and press <strong>Refresh</strong> in this terminal. Refresh rereads the file on this computer; it does not scrape websites or synchronize email.</p><h2>Connected records</h2><p>Calls link to Contact ID. Deals link to a buyer Contact ID and optional Supplier Contact ID. Milestones and Cash ledger rows link to Deal ID. Aggregations use each unique deal once; repeated calls and contacts do not multiply invoice values. Data Quality flags duplicate IDs and unknown keys.</p><h2>Financial views</h2><p>Invoice revenue is original net invoice amount × transaction FX, only for Invoiced or Closed deals with invoice dates. Direct trade contribution is invoice revenue less every required direct cost line. Missing cost inputs make contribution unavailable. Neither measure is operating profit.</p><p>Cash inflows/outflows use actual ledger dates and realized FX. Commission earned requires an explicit earned date and contract amount/FX. Commission received uses <code>Commission receipt</code>. Outstanding commission is earned commission minus valid credits and receipts. Commission receipts do not reduce physical-goods trade receivables.</p><h2>Filters and history</h2><p>Product and country filters affect the relevant records and visuals. Origin country applies to suppliers, destination country to buyers. Stage filters select deal stages and their linked companies. Date filters apply to dated activity and financial flows; current networks and open pipeline are snapshots. Network discovery timestamps do not imply historical network growth.</p><p>The performance selector keeps comparable units together: financial amounts with financial amounts, calls with connected calls, or single-series dated qualification/completion counts. Current active pipeline by expected close is labeled projected. No historical stage transitions are inferred.</p><h2>Geographic intelligence</h2><p>Markers represent published company countries using Natural Earth country label positions. They are not verified company, farm, factory or port coordinates. Corridors appear only when an existing deal has both origin and destination countries. Country trade statistics remain unavailable until sourced observations exist.</p><h2>Privacy and maintenance</h2><p>This application is served on <code>127.0.0.1</code>; workbook data is read locally. Contact details appear only in company drawers. The XLSX export includes your operational records, so keep it in a trusted location. Relaunch with <code>Launch Dashboard.command</code>.</p><p>Map boundaries: <a class="cyan" href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noreferrer">Natural Earth public-domain data</a>. Boundaries are illustrative and do not imply a political position.</p></div>`);}
 function render(){if(!model)return;currentData=filterModel(model,state);const info=pages[state.page]||pages.overview;$('#page-title').textContent=info.title;$('#heading').textContent=info.title;$('#eyebrow').textContent='TRADE LEDGER / '+info.group.toUpperCase();$('#period-label').textContent=state.year==='All recorded'?'All recorded periods':`01 JAN – 31 DEC ${state.year}`;$('#saved-label').textContent='Workbook saved '+new Date(model.meta.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+(state.country?' · COUNTRY: '+state.country:'');
  let html='';switch(state.page){case'discovery':html=discoveryPage(currentData);break;case'overview':html=overview(currentData);break;case'buyers':case'exporters':case'suppliers':case'priority':html=networkPage(currentData,state.page);break;case'deals':case'opportunities':case'quotes':html=dealsPage(currentData,state.page);break;case'calls':html=callingPage(currentData);break;case'followups':html=followupPage(currentData);break;case'products':html=productsPage(currentData);break;case'market':html=marketPage(currentData);break;case'countries':html=countriesPage(currentData);break;case'milestones':case'shipments':case'compliance':html=milestonesPage(currentData,state.page);break;case'cash':html=cashPage(currentData);break;case'finance':case'commission':case'profit':html=financePage(currentData,state.page);break;case'matching':html=matchingPage(currentData);break;case'quality':html=qualityPage();break;case'settings':html=settingsPage();break;case'guide':html=guidePage();break;case'map':html=mapPage(currentData);break;}
- $('#content').innerHTML=(operationPages[state.page]?`<div class="panel-tools"><button data-operation="">${operationPages[state.page][1]}</button></div>`:'')+(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();$('#foot-count').textContent=` · ${model.contacts.length} contacts / ${model.deals.length} deals / ${model.cash.length} cash events`;$('#foot-refresh').textContent='LAST READ '+new Date(model.meta.refreshedAt).toLocaleTimeString('en-GB')+' · '+model.meta.formulaErrors+' FORMULA ERRORS';if(state.page==='map')bindMap();}
+ $('#content').innerHTML=(operationPages[state.page]?`<div class="record-toolbar"><button class="record-primary" data-operation=""><span aria-hidden="true">＋</span> ${operationPages[state.page][1]}</button></div>`:'')+(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();if(state.page==='map')bindMap();}
 function safeLink(url,label){if(!url||!/^https?:\/\//i.test(url))return'N/A';return`<a href="${esc(url)}" target="_blank" rel="noreferrer" class="cyan">${esc(label||url)}</a>`;}
 function fact(label,value,full=false){return`<div class="fact ${full?'full':''}"><span>${esc(label)}</span><b>${value==null||value===''?'N/A':value}</b></div>`;}
 function openDrawer(kind,id){let html='';if(kind==='country'){state.country=id;state.page='map';location.hash='map';render();return;}if(kind==='product'){state.product=id;state.page='products';location.hash='products';renderFilters();render();return;}
@@ -180,8 +180,9 @@ if (location.hostname === '127.0.0.1') {
  document.addEventListener('trade-model-loaded',()=>{ bulkButton.hidden=false; });
  bulkButton.onclick=()=>{
   const dialog=document.createElement('dialog');
-  dialog.style.cssText='background:#101d30;color:#eaf2fc;padding:1.25rem;width:min(640px,90vw)';
-  dialog.innerHTML='<h2>Bulk import companies</h2><p>Choose CSV or XLSX with a Company column. Optional columns include Role, Country, Product, Email, Phone and Website. Excel imports use the selected worksheet saved in the file.</p><input type="file" accept=".csv,.xlsx"><p role="status"></p><pre style="white-space:pre-wrap;max-height:35vh;overflow:auto"></pre><button>Preview</button> <button disabled>Import companies</button> <button>Close</button>';
+  dialog.className='record-editor import-editor';
+  dialog.setAttribute('aria-labelledby','bulk-title');
+  dialog.innerHTML='<h2 id="bulk-title">Bulk import companies</h2><p>Choose CSV or XLSX with a Company column. Optional columns include Role, Country, Product, Email, Phone and Website. Excel imports use the selected worksheet saved in the file.</p><input type="file" accept=".csv,.xlsx"><p role="status"></p><pre style="white-space:pre-wrap;max-height:35vh;overflow:auto"></pre><button>Preview</button> <button class="record-primary" disabled>Import companies</button> <button>Close</button>';
   const file=dialog.querySelector('input');
   const status=dialog.querySelector('[role=status]');
   const preview=dialog.querySelector('pre');
@@ -264,7 +265,7 @@ function optionsFor(type){
  if(Array.isArray(type))return type.map(value=>[value,value]);
  if(type==='boolean')return [['false','No'],['true','Yes']];
  if(type==='deal')return model.deals.map(row=>[row.id,row.product+' · '+row.id]);
- if(['contact','buyer','supplier'].includes(type))return model.contacts.filter(row=>type==='contact'||(row.role==='Buyer')===(type==='buyer')).map(row=>[row.id,row.name+' · '+row.id]);
+ if(['contact','buyer','supplier'].includes(type))return model.contacts.filter(row=>type==='contact'||(row.role==='Buyer')===(type==='buyer')).sort((a,b)=>a.name.localeCompare(b.name)).map(row=>[row.id,row.name+(row.country?' · '+row.country:'')]);
  return null;
 }
 function fieldControl(field,record,attrs=''){
@@ -273,7 +274,7 @@ function fieldControl(field,record,attrs=''){
  const items=optionsFor(type);
  if(items){
   const entries=[...items];
-  if(!entries.some(([entry])=>String(entry)===String(value)))entries.unshift([value,value||'Select…']);
+  if(!entries.some(([entry])=>String(entry)===String(value)))entries.unshift([value,value||('Select '+label.toLowerCase()+'…')]);
   if(!required&&value!==''&&type!=='boolean'&&!entries.some(([entry])=>entry===''))entries.unshift(['','None']);
   return `<select name="${key}" aria-label="${label}" ${required?'required':''} ${attrs}>${entries.map(([entry,title])=>`<option value="${esc(entry)}" ${String(entry)===String(value)?'selected':''}>${esc(title)}</option>`).join('')}</select>`;
  }
@@ -314,7 +315,8 @@ function persistRecord(collection,record,revision){
 function recordDialog(title,body,submit){
  const dialog=document.createElement('dialog');
  dialog.className='record-editor';
- dialog.innerHTML=`<form><h2>${title}</h2>${body}<p role="status"></p><button type="submit">Save</button> <button type="button" data-close>Close</button></form>`;
+ dialog.setAttribute('aria-labelledby','editor-title');
+ dialog.innerHTML=`<form><div class="editor-header"><div class="eyebrow">TRADE LEDGER</div><h2 id="editor-title">${title}</h2></div><div class="editor-body">${body}</div><div class="editor-actions"><p role="status"></p><button type="button" data-close>Close</button><button class="record-primary" type="submit">Save</button></div></form>`;
  const form=dialog.querySelector('form'), status=dialog.querySelector('[role=status]');
  const save=form.querySelector('[type=submit]');
  form.querySelector('[data-close]').onclick=()=>dialog.close();
@@ -334,9 +336,18 @@ function recordDialog(title,body,submit){
  document.body.append(dialog);
  dialog.showModal();
 }
+const dealSections=[
+ ['Trading parties',['buyerId','supplierId','product','origin','destination','stage']],
+ ['Quantity and pipeline',['quantity','unit','expectedValue','probability','expectedClose','nextFollowup']],
+ ['Invoicing and commission',['invoiceDate','invoiceDue','completedDate','revenue','directCost','commissionExpected','commissionEarned','commissionEarnedDate','commissionDue']],
+ ['Compliance and notes',['compliance','notes']]
+];
 function openRecordEditor(collection,record,revision=0){
  const fields=collection==='contacts'?contactFields:operationFields[collection];
- recordDialog(revision?'Edit record':'Add record',`<div class="editor-fields">${fields.map(field=>`<label>${field[1]}${fieldControl(field,record)}</label>`).join('')}</div>`,async values=>{
+ const grid=items=>`<div class="editor-fields">${items.map(field=>`<label><span>${field[1]}${field[3]?'<span aria-hidden="true" class="field-required"> *</span>':''}</span>${fieldControl(field,record)}</label>`).join('')}</div>`;
+ const sections=collection==='deals'?dealSections.map(([title,keys])=>`<fieldset><legend>${title}</legend>${grid(keys.map(key=>fields.find(field=>field[0]===key)))}</fieldset>`).join(''):grid(fields);
+ const name={contacts:'company',deals:state.page==='quotes'?'quotation':'deal',calls:'interaction',milestones:'milestone',cash:'cash event'}[collection];
+ recordDialog((revision?'Edit ':'Add ')+name,sections,async values=>{
   const data={...record};
   for(const field of fields)data[field[0]]=fieldValue(field,values.get(field[0]));
   if(collection==='contacts'&&!data.name)throw Error('Enter a company name.');
