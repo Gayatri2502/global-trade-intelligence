@@ -62,35 +62,33 @@ class handler(Handler):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign in | Trade Ledger</title><link rel="stylesheet" href="/style.css">
 <body class="login-page"><main class="login-layout">
-<section class="trade-illustration" aria-label="Illustration of international shipping routes">
-<p class="eyebrow">GLOBAL TRADE WORKSPACE</p><h1>Trade across borders</h1>
-<p>Trade Ledger is the Global Trade Works workspace for importers and exporters. Find trading partners, assess leads, and follow a deal from the first call through shipment and payment.</p>
+<section class="trade-illustration" aria-labelledby="login-title">
+<div class="login-brand"><span class="login-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M5 10l11-6 11 6v12l-11 6-11-6z M5 10l11 6 11-6 M16 16v12 M10 7l11 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span> TRADE LEDGER</div>
+<h1 id="login-title">India&#8217;s Global Trade Desk</h1>
+<p>Manage trading partners, shipments, and payments for your import and export business.</p>
 <div class="login-entry"><a class="login-button" href="/auth/login">Sign in with Google</a><p id="login-status" role="status">Access is limited to the approved account.</p></div>
-<svg viewBox="0 0 580 330" role="img" aria-label="Illustrative routes linking the Americas, Europe, Africa, and Asia">
-<defs><pattern id="trade-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#29455b" stroke-width=".55"/></pattern></defs>
-<rect width="580" height="330" rx="16" fill="url(#trade-grid)"/>
-<g fill="#173147" stroke="#31566e" stroke-width="1.5">
-<path d="M50 78l32-34 66 2 48 27-30 29-13 32-29 3-9 32-26-20-16-39z"/>
-<path d="M135 173l46 5 35 38-26 57-26 34-10-49-18-33z"/>
-<path d="M251 80l39-31 33 18 35-25 111 5 67 44-28 29-38 12-27 48-46-27-26 14-32-46-28 8-37-15z"/>
-<path d="M270 130l53 2 37 35-29 67-23 22-20-52-21-34z"/>
-<path d="M450 230l32-20 48 14 14 31-26 24-57-7z"/>
+<svg class="login-routes" viewBox="0 0 580 230" role="img" aria-label="Illustration of cargo imports into India and exports from India">
+<defs>
+<pattern id="trade-grid" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" stroke="#29455b" stroke-width=".6"/></pattern>
+<marker id="in-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0l10 5-10 5z" fill="#ffba72"/></marker>
+<marker id="out-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0l10 5-10 5z" fill="#68e8cd"/></marker>
+</defs>
+<rect width="580" height="230" rx="16" fill="#0b1628"/><rect width="580" height="230" rx="16" fill="url(#trade-grid)"/>
+<g fill="#182943" stroke="#334b68"><path d="M28 64l47-28 69 2 50 21-32 27-34 5-26 38-25-24-35-11zM128 130l39 8 30 27-21 39-26 12-15-44z"/><path d="M229 54l36-24 39 17 42-20 110 13 59 38-26 33-44 11-23 24-33-18-31 8-34-37-44 8-42-29zM250 106l50 5 37 32-28 48-26 17-25-47zM447 168l45-15 44 23-9 29-60 7-26-16z"/></g>
+<g fill="none" stroke-width="2.4">
+<path class="trade-route" d="M100 85Q198 20 365 117" stroke="#ffba72" marker-end="url(#in-arrow)"/>
+<path class="trade-route" d="M481 174Q433 200 380 132" stroke="#ffba72" marker-end="url(#in-arrow)"/>
+<path class="trade-route" d="M367 114Q323 36 272 66" stroke="#68e8cd" marker-end="url(#out-arrow)"/>
+<path class="trade-route" d="M367 134Q327 198 295 161" stroke="#68e8cd" marker-end="url(#out-arrow)"/>
+<path class="trade-route" d="M384 119Q442 54 478 87" stroke="#68e8cd" marker-end="url(#out-arrow)"/>
 </g>
-<g fill="none" stroke="#70e6d5" stroke-width="2">
-<path class="trade-route" d="M106 110Q181 19 286 97"/>
-<path class="trade-route" d="M286 97Q362 49 426 137"/>
-<path class="trade-route" d="M426 137Q475 146 489 248"/>
-<path class="trade-route" d="M178 223Q251 151 312 192"/>
-<path class="trade-route" d="M312 192Q374 198 426 137"/>
-</g>
-<g fill="#93f6e7" stroke="#173147" stroke-width="3"><circle cx="106" cy="110" r="6"/><circle cx="286" cy="97" r="6"/><circle cx="426" cy="137" r="6"/><circle cx="489" cy="248" r="6"/><circle cx="178" cy="223" r="6"/><circle cx="312" cy="192" r="6"/></g>
-<g fill="#a6bdce" font-size="11" font-family="system-ui"><text x="66" y="129">N. AMERICA</text><text x="253" y="119">EUROPE</text><text x="436" y="140">ASIA</text><text x="458" y="292">OCEANIA</text><text x="121" y="209">S. AMERICA</text><text x="279" y="179">AFRICA</text></g>
-</svg><small>Illustrative connections between sourcing and destination markets.</small></section>
-<section class="workspace-preview" aria-label="What is inside Trade Ledger">
-<p class="eyebrow">INSIDE THE WORKSPACE</p><h2>From a new lead to a settled deal</h2>
-<div class="preview-steps"><article><span>01</span><h3>Find trading partners</h3><p>Browse importer and exporter directories, compare markets, and review source evidence.</p></article>
-<article><span>02</span><h3>Build your pipeline</h3><p>Score contacts, log calls, schedule follow-ups, and track quotes and deals.</p></article>
-<article><span>03</span><h3>Follow execution and cash</h3><p>Track shipment milestones, compliance checks, receipts, and commission.</p></article></div>
+<g fill="#b9a5ff"><circle cx="100" cy="85" r="4"/><circle cx="481" cy="174" r="4"/><circle cx="272" cy="66" r="4"/><circle cx="295" cy="161" r="4"/><circle cx="478" cy="87" r="4"/></g>
+<circle cx="375" cy="125" r="17" fill="#ffba72" opacity=".18"/><circle cx="375" cy="125" r="8" fill="#ffba72" stroke="#fff0c8" stroke-width="2"/>
+<g fill="#dce7f5" font-size="12" font-family="system-ui" text-anchor="middle"><text x="100" y="105">AMERICAS</text><text x="272" y="56">EUROPE</text><text x="283" y="180">AFRICA</text><text x="480" y="74">EAST ASIA</text><text x="490" y="196">OCEANIA</text><text x="397" y="146" fill="#ffe0aa" font-weight="700">INDIA</text></g>
+<g transform="translate(85 158)" stroke="#b9a5ff" stroke-width="1.4" fill="none"><path d="M0 13h45l-7 9H7z M9 13V4h12v9 M21 13V4h12v9 M34 13V0h6v13 M1 27q5 3 10 0t10 0 10 0 10 0"/></g>
+</svg>
+<div class="trade-legend"><span class="trade-import">Imports into India</span><span class="trade-export">Exports from India</span></div>
+<small>Illustrative routes</small>
 </section></main><script type="module" src="/login.mjs"></script></body></html>"""
             else:
                 body = (Path(__file__).resolve().parents[1] / 'index.html').read_bytes()
