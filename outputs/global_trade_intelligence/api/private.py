@@ -61,9 +61,34 @@ class handler(Handler):
                 body = b"""<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign in | Trade Ledger</title><link rel="stylesheet" href="/style.css">
-<body class="login-page"><section class="login-card"><p class="eyebrow">TRADE LEDGER</p>
-<h1>Sign in to Trade Ledger</h1><p>Use the approved Google account to access your trading workspace.</p>
-<a class="login-button" href="/auth/login">Sign in with Google</a></section></body></html>"""
+<body class="login-page"><main class="login-layout">
+<section class="trade-illustration" aria-label="Illustration of international shipping routes">
+<p class="eyebrow">GLOBAL TRADE WORKSPACE</p><h1>Trade across borders</h1>
+<p>Manage buyers, suppliers, and deals in one place.</p>
+<svg viewBox="0 0 580 330" role="img" aria-label="Illustrative routes linking the Americas, Europe, Africa, and Asia">
+<defs><pattern id="trade-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#29455b" stroke-width=".55"/></pattern></defs>
+<rect width="580" height="330" rx="16" fill="url(#trade-grid)"/>
+<g fill="#173147" stroke="#31566e" stroke-width="1.5">
+<path d="M50 78l32-34 66 2 48 27-30 29-13 32-29 3-9 32-26-20-16-39z"/>
+<path d="M135 173l46 5 35 38-26 57-26 34-10-49-18-33z"/>
+<path d="M251 80l39-31 33 18 35-25 111 5 67 44-28 29-38 12-27 48-46-27-26 14-32-46-28 8-37-15z"/>
+<path d="M270 130l53 2 37 35-29 67-23 22-20-52-21-34z"/>
+<path d="M450 230l32-20 48 14 14 31-26 24-57-7z"/>
+</g>
+<g fill="none" stroke="#70e6d5" stroke-width="2">
+<path class="trade-route" d="M106 110Q181 19 286 97"/>
+<path class="trade-route" d="M286 97Q362 49 426 137"/>
+<path class="trade-route" d="M426 137Q475 146 489 248"/>
+<path class="trade-route" d="M178 223Q251 151 312 192"/>
+<path class="trade-route" d="M312 192Q374 198 426 137"/>
+</g>
+<g fill="#93f6e7" stroke="#173147" stroke-width="3"><circle cx="106" cy="110" r="6"/><circle cx="286" cy="97" r="6"/><circle cx="426" cy="137" r="6"/><circle cx="489" cy="248" r="6"/><circle cx="178" cy="223" r="6"/><circle cx="312" cy="192" r="6"/></g>
+<g fill="#a6bdce" font-size="11" font-family="system-ui"><text x="66" y="129">N. AMERICA</text><text x="253" y="119">EUROPE</text><text x="436" y="140">ASIA</text><text x="458" y="292">OCEANIA</text><text x="121" y="209">S. AMERICA</text><text x="279" y="179">AFRICA</text></g>
+</svg><small>Illustrative routes</small></section>
+<section class="login-card"><p class="eyebrow">TRADE LEDGER</p><h2>Sign in</h2>
+<p>Use the approved Google account to access your workspace.</p>
+<a class="login-button" href="/auth/login">Sign in with Google</a>
+<p id="login-status" role="status"></p></section></main><script type="module" src="/login.mjs"></script></body></html>"""
             else:
                 body = (Path(__file__).resolve().parents[1] / 'index.html').read_bytes()
             self.send_response(200)
@@ -86,7 +111,7 @@ class handler(Handler):
             code = query.get('code', [''])[0]
             expired = self.set_cookie('trade-state', '', 0)
             if not code or not state.isascii() or not state or not hmac.compare_digest(state, self.cookie('trade-state')):
-                return self.reply(403, 'Sign-in could not be verified. Start again from Trade Ledger.', cookie=expired)
+                return self.reply(303, location='/login?status='+('cancelled' if query.get('error')==['access_denied'] else 'failed'), cookie=expired)
             try:
                 form = urlencode(dict(code=code, client_id=os.environ['GOOGLE_CLIENT_ID'],
                                      client_secret=os.environ['GOOGLE_CLIENT_SECRET'], redirect_uri=CALLBACK,
@@ -98,7 +123,7 @@ class handler(Handler):
                 with urlopen(profile, timeout=10) as response:
                     identity = json.load(response)
                 if identity.get('email_verified') is not True or identity.get('email', '').lower() != OWNER:
-                    return self.reply(403, 'This Google account does not have access to Trade Ledger.', cookie=expired)
+                    return self.reply(303, location='/login?status=denied', cookie=expired)
                 expiry = str(int(time.time()) + 3600)
                 session = expiry + '.' + self.signature(OWNER + ':' + expiry)
                 self.send_response(303)
@@ -109,7 +134,7 @@ class handler(Handler):
                 self.end_headers()
                 return
             except (OSError, KeyError, ValueError):
-                return self.reply(502, 'Google sign-in failed. Please try again.', cookie=expired)
+                return self.reply(303, location='/login?status=failed', cookie=expired)
         if request.path != '/api/ledger':
             return self.reply(404)
         if not self.signed_in():
@@ -122,7 +147,7 @@ class handler(Handler):
         if urlsplit(self.path).path == '/auth/logout':
             return self.reply(303, location='/login', cookie=self.set_cookie('trade-session', '', 0))
         if not self.signed_in():
-            return self.reply(403, 'Access denied.')
+            return self.reply(401, 'Sign in with the approved Google account.')
         return self.write_records(ORIGIN)
 
     def do_HEAD(self):

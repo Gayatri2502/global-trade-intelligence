@@ -102,7 +102,7 @@ class Handler(SimpleHTTPRequestHandler):
             file=ROOT/'world.geojson'
             if not file.exists():self.send_error(503,'Country boundaries not installed');return
             self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(file.read_bytes())
-        elif route not in ('/', '/index.html', '/app.js', '/metrics.mjs', '/style.css', '/world.geojson'):
+        elif route not in ('/', '/index.html', '/app.js', '/metrics.mjs', '/feedback.mjs', '/login.mjs', '/style.css', '/world.geojson'):
             self.send_error(404)
         else:super().do_GET()
 

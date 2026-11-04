@@ -1,3 +1,4 @@
+import {busy,feedback,requestJSON} from './feedback.mjs';
 let ledgerRows=[];
 import {isNum,sum,ratio,active,inYear,filterModel,summary,performance,risk} from './metrics.mjs';
 const $=s=>document.querySelector(s),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,7 +15,7 @@ const pages=Object.fromEntries(groups.flatMap(([group,items])=>items.map(([id,ti
 let model=null,geo=null,currentData=null,currentTable=null,sort={key:null,dir:1},mapView={x:-180,y:-90,w:360,h:180};
 const state={page:location.hash.slice(1)||'overview',year:'2026',product:'All',origin:'All',destination:'All',role:'All',stage:'All',priority:'All',q:'',metric:'finance',grain:'month',country:null,verified:false,showBuyers:true,showSuppliers:true};
 if(!pages[state.page])state.page='overview';
-function toast(text){$('#toast').textContent=text;$('#toast').classList.add('show');setTimeout(()=>$('#toast').classList.remove('show'),2600);}
+function toast(text,tone='success'){feedback($('#toast'),tone,text);}
 function select(id,label,values,value){return`<div class="filter"><label for="${id}">${label}</label><select id="${id}" data-filter="${id}">${values.map(v=>`<option value="${esc(v)}" ${String(value)===String(v)?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`;}
 function renderNav(){$('#nav').innerHTML=groups.map(([label,items])=>`<div class="nav-group">${label.toUpperCase()}</div>${items.map(([id,title,ic])=>`<button class="nav-item ${state.page===id?'active':''}" data-page="${id}" title="${esc(title)}" aria-current="${state.page===id?'page':'false'}">${icon(ic)}<span>${title}</span></button>`).join('')}`).join('');}
 function renderFilters(){
@@ -108,7 +109,7 @@ function settingsPage(){const s=model.settings;return panel('WORKBOOK SCORING & 
 function guidePage(){return panel('OPERATING GUIDE & METRIC DEFINITIONS',`<div class="guide-body"><h2>Daily workflow</h2><p>Edit the original workbook at <code>${esc(model.meta.workbook)}</code>. The Source button shows this location; the XLSX download is a separate snapshot. Update the existing CRM, Call log, Deals, Milestones and Cash ledger tables using stable IDs. Save the workbook and press <strong>Refresh</strong> in this terminal. Refresh rereads the file on this computer; it does not scrape websites or synchronize email.</p><h2>Connected records</h2><p>Calls link to Contact ID. Deals link to a buyer Contact ID and optional Supplier Contact ID. Milestones and Cash ledger rows link to Deal ID. Aggregations use each unique deal once; repeated calls and contacts do not multiply invoice values. Data Quality flags duplicate IDs and unknown keys.</p><h2>Financial views</h2><p>Invoice revenue is original net invoice amount × transaction FX, only for Invoiced or Closed deals with invoice dates. Direct trade contribution is invoice revenue less every required direct cost line. Missing cost inputs make contribution unavailable. Neither measure is operating profit.</p><p>Cash inflows/outflows use actual ledger dates and realized FX. Commission earned requires an explicit earned date and contract amount/FX. Commission received uses <code>Commission receipt</code>. Outstanding commission is earned commission minus valid credits and receipts. Commission receipts do not reduce physical-goods trade receivables.</p><h2>Filters and history</h2><p>Product and country filters affect the relevant records and visuals. Origin country applies to suppliers, destination country to buyers. Stage filters select deal stages and their linked companies. Date filters apply to dated activity and financial flows; current networks and open pipeline are snapshots. Network discovery timestamps do not imply historical network growth.</p><p>The performance selector keeps comparable units together: financial amounts with financial amounts, calls with connected calls, or single-series dated qualification/completion counts. Current active pipeline by expected close is labeled projected. No historical stage transitions are inferred.</p><h2>Geographic intelligence</h2><p>Markers represent published company countries using Natural Earth country label positions. They are not verified company, farm, factory or port coordinates. Corridors appear only when an existing deal has both origin and destination countries. Country trade statistics remain unavailable until sourced observations exist.</p><h2>Privacy and maintenance</h2><p>This application is served on <code>127.0.0.1</code>; workbook data is read locally. Contact details appear only in company drawers. The XLSX export includes your operational records, so keep it in a trusted location. Relaunch with <code>Launch Dashboard.command</code>.</p><p>Map boundaries: <a class="cyan" href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noreferrer">Natural Earth public-domain data</a>. Boundaries are illustrative and do not imply a political position.</p></div>`);}
 function render(){if(!model)return;currentData=filterModel(model,state);const info=pages[state.page]||pages.overview;$('#page-title').textContent=info.title;$('#heading').textContent=info.title;$('#eyebrow').textContent='TRADE LEDGER / '+info.group.toUpperCase();$('#period-label').textContent=state.year==='All recorded'?'All recorded periods':`01 JAN – 31 DEC ${state.year}`;$('#saved-label').textContent='Workbook saved '+new Date(model.meta.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+(state.country?' · COUNTRY: '+state.country:'');
  let html='';switch(state.page){case'discovery':html=discoveryPage(currentData);break;case'overview':html=overview(currentData);break;case'buyers':case'exporters':case'suppliers':case'priority':html=networkPage(currentData,state.page);break;case'deals':case'opportunities':case'quotes':html=dealsPage(currentData,state.page);break;case'calls':html=callingPage(currentData);break;case'followups':html=followupPage(currentData);break;case'products':html=productsPage(currentData);break;case'market':html=marketPage(currentData);break;case'countries':html=countriesPage(currentData);break;case'milestones':case'shipments':case'compliance':html=milestonesPage(currentData,state.page);break;case'cash':html=cashPage(currentData);break;case'finance':case'commission':case'profit':html=financePage(currentData,state.page);break;case'matching':html=matchingPage(currentData);break;case'quality':html=qualityPage();break;case'settings':html=settingsPage();break;case'guide':html=guidePage();break;case'map':html=mapPage(currentData);break;}
- $('#content').innerHTML=(operationPages[state.page]?`<div class="record-toolbar"><button class="record-primary" data-operation=""><span aria-hidden="true">＋</span> ${operationPages[state.page][1]}</button></div>`:'')+(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();if(state.page==='map')bindMap();}
+ $('#content').innerHTML=(operationPages[state.page]?`<div class="record-toolbar"><button class="record-primary" data-operation=""><span aria-hidden="true">＋</span> ${operationPages[state.page][1]}</button></div>`:'')+(state.page==='overview'&&model.discovery?.length?`<div class="table-note"><b class="cyan">${model.discovery.length} SOURCED CONTACTS</b> · Unverified discovery records · <button data-page="discovery">Review contact directory →</button></div>`:'')+html;renderNav();if(state.page==='map'){bindMap();loadMap();}}
 function safeLink(url,label){if(!url||!/^https?:\/\//i.test(url))return'N/A';return`<a href="${esc(url)}" target="_blank" rel="noreferrer" class="cyan">${esc(label||url)}</a>`;}
 function fact(label,value,full=false){return`<div class="fact ${full?'full':''}"><span>${esc(label)}</span><b>${value==null||value===''?'N/A':value}</b></div>`;}
 function openDrawer(kind,id){let html='';if(kind==='country'){state.country=id;state.page='map';location.hash='map';render();return;}if(kind==='product'){state.product=id;state.page='products';location.hash='products';renderFilters();render();return;}
@@ -131,7 +132,29 @@ function mapPage(data){const countries=[...new Set(data.contacts.map(c=>c.countr
  return`<div class="notice">Published company-country locations only. Markers are country label positions, not verified factory, farm, office or port coordinates. Corridors require recorded deal endpoints.</div><div class="map-layout">${panel('GLOBAL TRADE NETWORK',`<div class="map-layers"><label><input id="layer-buyers" type="checkbox" ${state.showBuyers?'checked':''}> Buyer layer</label><label><input id="layer-suppliers" type="checkbox" ${state.showSuppliers?'checked':''}> Supplier layer</label><label><input id="map-verified" type="checkbox" ${state.verified?'checked':''}> Verified only</label></div><div class="map-wrap">${geo?`<svg id="world-map" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}" aria-label="Country-level buyer and supplier map"><g>${svg}</g></svg>`:'<div class="empty-block"><b>Country boundary file unavailable</b>The country summary and directory remain available.</div>'}<div class="map-tools"><button id="map-zoom-in" aria-label="Zoom map in">+</button><button id="map-zoom-out" aria-label="Zoom map out">−</button><button id="map-reset">Reset map</button></div><div class="map-legend"><span class="buyer">Buyers</span><span class="seller">Suppliers</span><span class="amber">— Recorded deal corridor</span></div></div><div class="map-coverage">${countries.length} countries · ${countries.filter(c=>position(c)).length} mapped countries · ${data.deals.filter(d=>d.origin&&d.destination).length} known deal endpoints · Natural Earth public-domain boundaries</div>`)}${panel('COUNTRY INTELLIGENCE',`<div class="map-summary"><h2>${esc(state.country||'Global network')}</h2><p>${state.country?'Selected country · click a company for details':'Select a marker or country to inspect its network'}</p><div class="country-stats"><div class="country-stat">POTENTIAL BUYERS<b>${mapContacts.filter(c=>c.role==='Buyer').length}</b></div><div class="country-stat">SUPPLIERS<b>${mapContacts.filter(c=>c.role!=='Buyer').length}</b></div><div class="country-stat">ACTIVE OPPORTUNITIES<b>${mapDeals.filter(active).length}</b></div><div class="country-stat">PIPELINE INR<b>${compact(sum(mapDeals,'pipeline'))}</b></div></div><div class="map-companies">${mapContacts.map(c=>`<div class="company-mini" data-kind="contact" data-id="${esc(c.id)}"><b>${esc(c.name)}</b><span>${esc(c.role)} · ${esc(c.product)} · ${esc(c.country)}</span></div>`).join('')||'<div class="empty-block">No company records for this country in the filtered source.</div>'}</div></div>`)} </div>`;
 }
 function bindMap(){const svg=$('#world-map');if(!svg)return;const zoom=f=>{const cx=mapView.x+mapView.w/2,cy=mapView.y+mapView.h/2;mapView.w=Math.min(440,Math.max(45,mapView.w*f));mapView.h=mapView.w/2;mapView.x=cx-mapView.w/2;mapView.y=cy-mapView.h/2;svg.setAttribute('viewBox',`${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}`);};$('#map-zoom-in').onclick=()=>zoom(.75);$('#map-zoom-out').onclick=()=>zoom(1.33);$('#map-reset').onclick=()=>{mapView={x:-180,y:-90,w:360,h:180};state.country=null;render();};svg.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?.9:1.1);},{passive:false});let drag=null,moved=false;svg.onpointerdown=e=>{if(e.button!==0)return;drag={x:e.clientX,y:e.clientY,view:{...mapView}};moved=false;};svg.onpointermove=e=>{if(!drag)return;const dx=(e.clientX-drag.x)/svg.clientWidth*mapView.w,dy=(e.clientY-drag.y)/svg.clientHeight*mapView.h;if(Math.abs(dx)+Math.abs(dy)>1)moved=true;mapView.x=drag.view.x-dx;mapView.y=drag.view.y-dy;svg.setAttribute('viewBox',`${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}`);};svg.onpointerup=e=>{drag=null;if(moved){e.stopPropagation();setTimeout(()=>moved=false,0);}};svg.onclick=e=>{if(moved)return;const country=e.target.closest('[data-map-country]')?.dataset.mapCountry;if(!country)return;state.country=model.contacts.map(c=>c.country).find(c=>(countryAliases[c]||c)===country)||country;render();};}
-async function refresh(first=false){$('#refresh').disabled=true;$('#refresh-state').textContent='● READING DATA';if(first)$('#content').innerHTML='<div class="loading">Loading records…</div>';try{const res=await fetch('/api/ledger',{cache:'no-store'});if(res.status===401){ location.replace('/login'); return; }if(!res.ok)throw new Error((await res.json()).error||'Database read failed');const payload=await res.json();model=payload.model||payload; if(payload.records){ ledgerRows=payload.records; for(const collection of ['contacts','calls','deals','milestones','cash'])model[collection]=ledgerRows.filter(row=>row.collection===collection&&!row.archived).map(row=>row.data); for(const collection of ['contacts','calls','deals','milestones','cash'])model.meta.coverage[collection]=model[collection].length; }
+let activeRefresh;
+let queuedRefresh;
+function refresh(first=false,quiet=false,afterWrite=false){
+ if(activeRefresh){
+  if(!afterWrite)return activeRefresh;
+  if(!queuedRefresh)queuedRefresh=activeRefresh.then(()=>{
+   queuedRefresh=null;
+   return refresh(false,true);
+  });
+  return queuedRefresh;
+ }
+ activeRefresh=readRecords(first,quiet).finally(()=>{activeRefresh=null;});
+ return activeRefresh;
+}
+async function readRecords(first,quiet){
+ const button=$('#refresh');
+ if(button.disabled)return;
+ const finish=busy(button,'Refreshing…');
+ feedback($('#refresh-state'),'loading','Loading records…');
+ if(first)$('#content').innerHTML='<div class="ledger-skeleton" role="status"><span>Loading workspace…</span><i></i><i></i><i></i></div>';
+ try{
+ const payload=await requestJSON('/api/ledger',{cache:'no-store'});
+ model=payload.model||payload; if(payload.records){ ledgerRows=payload.records; for(const collection of ['contacts','calls','deals','milestones','cash'])model[collection]=ledgerRows.filter(row=>row.collection===collection&&!row.archived).map(row=>row.data); for(const collection of ['contacts','calls','deals','milestones','cash'])model.meta.coverage[collection]=model[collection].length; }
  const discoveryEdits=model.contacts.filter(contact=>contact.discovery);
  const overrides=new Set(discoveryEdits.map(contact=>contact.discoverySourceId));
  const cashByDeal=new Map();
@@ -152,15 +175,35 @@ async function refresh(first=false){$('#refresh').disabled=true;$('#refresh-stat
    commissionOutstanding:isNum(deal.commissionEarned)?Math.max(0,deal.commissionEarned-totals.commission-(deal.commissionCredit||0)):null};
  });
  model.discovery=[...(model.discovery||[]).map((contact,index)=>({...contact,id:contact.id||'DISCOVERY-'+index})).filter(contact=>!overrides.has(contact.id)),...discoveryEdits.map(contact=>({...contact,verification:contact.verified?'Verified':'Unverified'}))];
- document.dispatchEvent(new Event('trade-model-loaded'));const filled=model.contacts.reduce((n,c)=>n+[c.id,c.name,c.product,c.country,c.source,c.phone||c.email].filter(Boolean).length,0);const completeness=model.contacts.length?filled/(model.contacts.length*6):null;$('#data-completeness').textContent='LEAD FIELDS '+pct(completeness);if(first)state.year=String(model.settings.B12||2026);$('#refresh-state').textContent='● SOURCE CONNECTED';renderFilters();render();if(!first)toast('Latest records loaded.');}catch(e){$('#refresh-state').textContent='● SOURCE UNAVAILABLE';$('#content').innerHTML=`<div class="error-screen"><h2>Database connection unavailable</h2><p>${esc(e.message)}</p><p>Try Refresh records.</p></div>`;}finally{$('#refresh').disabled=false;}}
-function exportCSV(){if(!currentTable)return;const{rows,cols}=currentTable;const safe=x=>{let s=String(x??'');if(/^[=+@-]/.test(s))s="'"+s;return'"'+s.replaceAll('"','""')+'"';};const csv=[cols.map(c=>safe(c.label)).join(','),...rows.map(r=>cols.map(c=>safe(r[c.key])).join(','))].join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=`trade-${state.page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+ document.dispatchEvent(new Event('trade-model-loaded'));const filled=model.contacts.reduce((n,c)=>n+[c.id,c.name,c.product,c.country,c.source,c.phone||c.email].filter(Boolean).length,0);const completeness=model.contacts.length?filled/(model.contacts.length*6):null;$('#data-completeness').textContent='LEAD FIELDS '+pct(completeness);if(first)state.year=String(model.settings.B12||2026);feedback($('#refresh-state'),'success','Records current');
+ renderFilters();render();
+ if(!first&&!quiet)toast('Latest records loaded.');
+ }catch(error){
+ feedback($('#refresh-state'),'warning',model?'Showing previously loaded records':'Records unavailable');
+ if(!model){
+  $('#content').innerHTML='<div class="error-screen" role="status"></div>';
+  feedback($('#content .error-screen'),'failed',error.message,()=>refresh(true));
+ }else feedback($('#toast'),'failed',error.message,()=>refresh());
+ }finally{finish();}
+}
+
+function exportCSV(){if(!currentTable)return;const{rows,cols}=currentTable;const safe=x=>{let s=String(x??'');if(/^[=+@-]/.test(s))s="'"+s;return'"'+s.replaceAll('"','""')+'"';};const csv=[cols.map(c=>safe(c.label)).join(','),...rows.map(r=>cols.map(c=>safe(r[c.key])).join(','))].join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=`trade-${state.page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV download started.');setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 document.addEventListener('click',e=>{if(e.target.closest('input,select,button[data-edit],button[data-add],button[data-multiple],button[data-operation]'))return;const page=e.target.closest('[data-page]');if(page){state.page=page.dataset.page;state.country=null;sort={key:null,dir:1};location.hash=state.page;render();return;}const record=e.target.closest('[data-kind]');if(record){openDrawer(record.dataset.kind,record.dataset.id);return;}if(e.target.closest('.drawer-close')||e.target===$('#drawer-cover')){closeDrawer();return;}const country=e.target.closest('[data-country-filter]');if(country){state.destination=country.dataset.countryFilter;state.country=null;renderFilters();render();toast('Destination filter: '+state.destination);return;}const product=e.target.closest('[data-product-filter]');if(product){state.product=product.dataset.productFilter;renderFilters();render();return;}const th=e.target.closest('[data-sort]');if(th){sort={key:th.dataset.sort,dir:sort.key===th.dataset.sort?-sort.dir:1};render();return;}if(e.target.closest('[data-export]'))exportCSV();if(e.target.closest('#reset')){Object.assign(state,{year:String(model.settings.B12||2026),metric:'finance',grain:'month',product:'All',origin:'All',destination:'All',role:'All',stage:'All',priority:'All',q:'',country:null,verified:false});$('#search').value='';renderFilters();render();}});
 document.addEventListener('change',e=>{if(e.target.matches('[data-filter]')){state[e.target.dataset.filter]=e.target.value;state.country=null;render();}if(e.target.id==='metric'){state.metric=e.target.value;render();}if(e.target.id==='grain'){state.grain=e.target.value;render();}if(['verified-only','map-verified'].includes(e.target.id)){state.verified=e.target.checked;render();}if(e.target.id==='layer-buyers'){state.showBuyers=e.target.checked;render();}if(e.target.id==='layer-suppliers'){state.showSuppliers=e.target.checked;render();}});
 let searchTimer;$('#search').addEventListener('input',e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.q=e.target.value.trim();render();},150);});$('#refresh').onclick=()=>refresh();
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();$('#tooltip').hidden=true;}if(e.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)){e.preventDefault();$('#search').focus();}});
 document.addEventListener('pointermove',e=>{const dot=e.target.closest('[data-chart-index]');if(dot&&window.currentPerformance){const p=window.currentPerformance,r=p.rows[+dot.dataset.chartIndex];$('#tooltip').innerHTML=`<small>${esc(r.label)} · ${esc(p.unit)}</small>${esc(p.names[0])}: <b>${fmt(r.a,2)}</b>${p.names[1]?`<br>${esc(p.names[1])}: <b>${r.hasB?fmt(r.b,2):'N/A'}</b>`:''}`;$('#tooltip').style.left=Math.min(e.clientX+12,innerWidth-240)+'px';$('#tooltip').style.top=Math.max(8,e.clientY-65)+'px';$('#tooltip').hidden=false;}else $('#tooltip').hidden=true;});
 window.addEventListener('hashchange',()=>{const p=location.hash.slice(1);if(pages[p]&&p!==state.page){state.page=p;sort={key:null,dir:1};render();}});
-renderNav();fetch('/api/map').then(r=>r.ok?r.json():null).then(x=>{geo=x;if(model&&state.page==='map')render();}).catch(()=>{});refresh(true);
+let mapRequest;
+function loadMap(){
+ if(geo||mapRequest)return;
+ mapRequest=requestJSON('/api/map').then(boundaries=>{geo=boundaries;if(state.page==='map')render();})
+ .catch(error=>{if(state.page==='map')feedback($('#toast'),'failed',error.message,loadMap);})
+ .finally(()=>{mapRequest=null;});
+ if(state.page==='map')feedback($('#toast'),'loading','Loading map boundaries…');
+ mapRequest.then(()=>{if(geo&&$('#toast').dataset.feedback==='loading')toast('Map ready.');});
+}
+renderNav();refresh(true);
 
 function discoveryPage(data){
  const rows=data.discovery,all=rows;
@@ -168,7 +211,7 @@ function discoveryPage(data){
 }
 
 if (location.hostname === '127.0.0.1') {
- setInterval(() => { if (!$('#refresh').disabled) refresh(); }, 60000);
+ setInterval(() => { if (!$('#refresh').disabled&&document.visibilityState==='visible') refresh(false,true); }, 60000);
 }
 
 {
@@ -188,22 +231,28 @@ if (location.hostname === '127.0.0.1') {
   const preview=dialog.querySelector('pre');
   const [inspect,commit,close]=dialog.querySelectorAll('button');
   let approved=null;
+  let uploadController;
+  let importing=false;
   file.onchange=()=>{approved=null;commit.disabled=true;preview.textContent='';status.textContent='';};
   async function send(confirmImport) {
    const selected=file.files[0];
-   if(!selected || selected.size>1450000){status.textContent='Choose a file under 1.45 MB.';return;}
-   inspect.disabled=commit.disabled=file.disabled=true;
+   if(!selected || selected.size>1450000){feedback(status,'warning','Choose a CSV or XLSX file under 1.45 MB.');return;}
+   if(uploadController)return;
+   uploadController=new AbortController();
+   importing=confirmImport;
+   inspect.disabled=commit.disabled=file.disabled=close.disabled=true;
+   if(!confirmImport)close.disabled=false;
+   feedback(status,'loading','Reading file…');
    try {
     const bytes=new Uint8Array(await selected.arrayBuffer());
     const content=btoa(Array.from(bytes,byte=>String.fromCharCode(byte)).join(''));
     if(confirmImport && content!==approved)throw Error('Preview the changed file first.');
-    const response=await fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:selected.name,content,commit:confirmImport})});
-    const result=await response.json();
-    if(!response.ok)throw Error(result.error);
+    feedback(status,'processing',confirmImport?'Saving companies…':'Checking rows…');
+    const result=await postLedger('/api/import',{name:selected.name,content,commit:confirmImport},uploadController.signal);
     if(confirmImport){
      approved=null;
-     status.textContent=`Imported ${result.imported}. Skipped ${result.skipped} existing companies.`;
-     await refresh();
+     feedback(status,result.skipped?'warning':'success',`Imported ${result.imported}. Skipped ${result.skipped} existing companies.`);
+     await refresh(false,true,true);
     }else{
      const keys=new Set(ledgerRows.filter(row=>row.collection==='contacts').map(row=>[row.data.name,row.data.country].map(value=>String(value||'').trim().toLowerCase()).join('|')));
      preview.textContent=result.records.map(record=>{
@@ -212,16 +261,17 @@ if (location.hostname === '127.0.0.1') {
       keys.add(key);
       return `${label} · ${record.name} · ${record.country} · ${record.role}`;
      }).concat(result.errors).join('\n');
-     status.textContent=`${result.records.length} valid rows. ${result.errors.length} invalid rows.`;
+     feedback(status,result.errors.length?'warning':'success',`${result.records.length} valid rows. ${result.errors.length} invalid rows.`);
      approved=result.records.length&&!result.errors.length?content:null;
     }
-   }catch(error){status.textContent=error.message;}
-   finally{inspect.disabled=file.disabled=false;commit.disabled=!approved;}
+   }catch(error){if(error.name!=='AbortError')feedback(status,'failed',error.message);}
+   finally{uploadController=null;importing=false;inspect.disabled=file.disabled=close.disabled=false;commit.disabled=!approved;}
   }
   inspect.onclick=()=>{approved=null;send(false);};
   commit.onclick=()=>send(true);
   close.onclick=()=>dialog.close();
-  dialog.onclose=()=>dialog.remove();
+  dialog.oncancel=event=>{if(importing)event.preventDefault();};
+  dialog.onclose=()=>{if(uploadController){uploadController.abort();toast('Preview cancelled.','cancelled');}dialog.remove();};
   document.body.append(dialog);
   dialog.showModal();
  };
@@ -232,6 +282,7 @@ if (location.hostname === 'trade-ledger-seven.vercel.app') {
  logout.method='POST';
  logout.action='/auth/logout';
  logout.innerHTML='<button type="submit">Sign out</button>';
+ logout.onsubmit=()=>busy(logout.querySelector('button'),'Signing out…');
  $('#refresh').after(logout);
 }
 
@@ -297,11 +348,8 @@ function fieldValue(field,raw){
  if(field[2]==='number')return raw===''?null:Number(raw);
  return raw.trim();
 }
-async function postLedger(path,payload){
- const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
- const result=await response.json().catch(()=>({error:'Request failed. Refresh or sign in again.'}));
- if(!response.ok)throw Error(result.error||'Could not save.');
- return result;
+function postLedger(path,payload,signal){
+ return requestJSON(path,{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
 }
 function persistRecord(collection,record,revision){
  if(collection==='contacts')record.excluded=record.priority==='Exclude';
@@ -321,17 +369,22 @@ function recordDialog(title,body,submit){
  const save=form.querySelector('[type=submit]');
  form.querySelector('[data-close]').onclick=()=>dialog.close();
  dialog.onclose=()=>dialog.remove();
+ dialog.oncancel=event=>{if(save.disabled)event.preventDefault();};
+ form.addEventListener('invalid',event=>feedback(status,'warning',event.target.validationMessage),true);
  form.onsubmit=async event=>{
   event.preventDefault();
-  save.disabled=true;
-  status.textContent='Saving…';
+  if(save.disabled)return;
+  const finish=busy(save,'Saving…');
+  form.querySelector('[data-close]').disabled=true;
+  feedback(status,'processing','Saving to the ledger…');
   try{
    const message=await submit(new FormData(form));
    dialog.close();
-   await refresh();
-   toast(message||'Record saved.');
-  }catch(error){status.textContent=error.message;}
-  finally{save.disabled=false;}
+   await refresh(false,true,true);
+   if($('#refresh-state').dataset.feedback==='success')toast(message||'Record saved.');
+   else toast((message||'Record saved.')+' Refresh to load the latest view.','warning');
+  }catch(error){feedback(status,'failed',error.message);}
+  finally{finish();form.querySelector('[data-close]').disabled=false;}
  };
  document.body.append(dialog);
  dialog.showModal();
@@ -374,12 +427,15 @@ document.addEventListener('change',async event=>{
  if(!row||!control.reportValidity())return;
  const field=contactFields.find(field=>field[0]===control.dataset.field);
  control.disabled=true;
+ feedback($('#toast'),'processing','Saving contact…');
  try{
   await persistRecord('contacts',{...row.data,[field[0]]:fieldValue(field,control.value)},row.revision);
-  await refresh();
+  await refresh(false,true,true);
+  if($('#refresh-state').dataset.feedback==='success')toast('Contact updated.');
+  else toast('Contact saved. Refresh to load the latest view.','warning');
  }catch(error){
-  await refresh();
-  toast(error.message);
+  await refresh(false,true,true);
+  feedback($('#toast'),'failed',error.message);
  }finally{control.disabled=false;}
 });
 document.addEventListener('click',event=>{
